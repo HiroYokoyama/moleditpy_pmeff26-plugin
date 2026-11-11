@@ -33,7 +33,11 @@ Python (NumPy + RDKit).
   energy into an estimate of the DFT total energy, so isomers can be compared.
 
 Scope of the first parameter set: neutral, closed-shell molecules of H, B, C,
-N, O, F, Si, P, S, Cl, Br and I. Metals, ions and radicals are refused.
+N, O, F, Si, P, S, Cl, Br and I, plus a first metal set (Li, Na, K, Mg, Ca, Al,
+Ge, Sn, Ti, Cr, Ni, Cu, Zn, Pd, Pt, Hg) in the coordination numbers that were
+calculated. Ions, radicals, open-shell metal centres, pi-complexes and
+5-coordinate centres are refused. Square-planar and octahedral centres use a
+periodic angle term with minima at 90 and 180 degrees.
 
 ## What it adds to MoleditPy
 
@@ -50,7 +54,12 @@ keeps the original geometry.
 ## Known limitations
 
 - The Lennard-Jones parameters are the per-element UFF values and are not
-  refit: the reference set contains no intermolecular data.
+  refit: the reference set contains no intermolecular data. The values for Ca, Cr,
+  Ni, Cu, Zn, Pd and Pt were entered from the published UFF table and are not
+  machine-verified.
+- Dispersion is only the r⁻⁶ part of that Lennard-Jones term; there is no
+  separate D3-style correction.
+- The metal set has no held-out validation molecules yet.
 - Charges are fixed bond-charge increments; there is no polarization.
 - The reference functional is ωB97X-D (GAMESS has no ωB97X-D3(BJ)).
 
