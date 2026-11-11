@@ -77,6 +77,8 @@ class Assignment:
     # Estimated-DFT-energy offset in Hartree, or None when the parameter set
     # has no increment for one of this molecule's types.
     energy_offset: Optional[float]
+    # Terms without parameters (only non-empty with allow_missing=True).
+    missing: List[str]
 
 
 def _small_ring(rings, i: int, j: int, k: int) -> int:
@@ -299,5 +301,5 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
             offset = None
     return Assignment(
         system, types, charges, bond_keys, angle_keys, torsion_keys,
-        improper_centers, pi_bond_keys, offset,
+        improper_centers, pi_bond_keys, offset, sorted(set(missing)),
     )
