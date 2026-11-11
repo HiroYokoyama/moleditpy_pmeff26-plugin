@@ -1,0 +1,60 @@
+name: Release
+
+# Builds the MoleditPy plugin zip, attaches it to a GitHub Release and notifies
+# the plugin registry.
+#
+# Trigger by pushing a `vX.Y.Z` tag, or run the workflow manually ("one click"
+# from the Actions tab) with the version as input — the workflow then creates
+# and pushes the tag for you.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0 — without leading v)'
+        required: true
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Plugin zip + GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Verify version matches plugin source
+        run: python scripts/release_common.py verify --version "$VERSION"
+
+      - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+      - name: Build plugin zip
+        run: python scripts/release_common.py package --version "$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release_common.py publish --version "$VERSION"
+
+      - name: Trigger moleditpy-plugins registry update
+        if: success()
+        continue-on-error: true
+        env:
+          REGISTRY_PAT: ${{ secrets.REGISTRY_PAT }}
+        run: python scripts/release_common.py notify --version "$VERSION"

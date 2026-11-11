@@ -1,0 +1,48 @@
+name: Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTEST_QT_API: pyside6
+  QT_API: pyside6
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install pytest pytest-cov pytest-qt PySide6-Essentials numpy rdkit pylint==4.0.9
+
+      - name: Install Qt offscreen runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libopengl0
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --cov=peff26_plugin --cov-report=term-missing
+
+      - name: Lint
+        run: pylint peff26_plugin/ --fail-under=9.0
+
+      - name: Real Qt threading and dialog checks
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests_gui/ -v
