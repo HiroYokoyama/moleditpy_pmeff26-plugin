@@ -64,9 +64,28 @@ keeps the original geometry.
 
 ## Fitting
 
-`fitting/` holds the reference pipeline: the molecule sets (`dataset.py`),
-the GAMESS input writer, the remote driver, and `run_all.py`, which builds and
-submits everything as one Job Manager job. See the docstring of each module.
+The reference pipeline lives in `fitting/`. With the MoleditPy Job Manager
+running (Local API on), two commands take it from nothing to a fitted
+parameter file:
+
+```bash
+python -m fitting.run_all
+```
+
+```bash
+python -m fitting.build_parameters
+```
+
+The first builds every GAMESS input (ωB97X-D/def2-TZVP) and submits them as one
+job. The second downloads whatever has finished, extracts energies,
+geometries, Hessians, dipoles and torsion scans, fits the parameters and
+writes the parameter file plus `reference/fit_report.md`. The fit matches the
+force-field gradient and Hessian to DFT at every training minimum by linear
+least squares; held-out validation molecules are only used for the report.
+The π term is not fitted by this script yet.
+
+See [HANDOFF.md](HANDOFF.md) for the current state, the remaining steps and
+the known gaps.
 
 ## Development
 

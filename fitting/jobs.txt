@@ -1,0 +1,3 @@
+# Job Manager job ids of the reference runs (one per line; text after the id is a note)
+4f16990769e4 main run: train + validate + scans (host 1J1NFIR)
+c67e6569e89f metal set (host 1J1NFIR)

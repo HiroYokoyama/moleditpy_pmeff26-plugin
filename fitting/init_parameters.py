@@ -138,13 +138,10 @@ def uff_lj(symbol: str) -> list[float]:
     return [round(x1 / 2.0, 4), d1]
 
 
-def main(argv: list[str] | None = None) -> int:
-    argv = sys.argv[1:] if argv is None else argv
-    if OUT.exists() and "--force" not in argv:
-        print(f"{OUT} exists; pass --force to overwrite (this discards fitted values)")
-        return 1
+def skeleton() -> dict:
+    """The unfitted parameter file: types, scale factors and the vdW table."""
     lj = {el: uff_lj(el) for el in UFF_VDW}
-    data = {
+    return {
         "name": "PMEFF26",
         "version": "0.0.0-unfitted",
         "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
@@ -165,9 +162,17 @@ def main(argv: list[str] | None = None) -> int:
         "torsions": {},
         "impropers": {},
     }
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    if OUT.exists() and "--force" not in argv:
+        print(f"{OUT} exists; pass --force to overwrite (this discards fitted values)")
+        return 1
+    data = skeleton()
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
-    print(f"wrote {OUT}: {len(data['atom_types'])} atom-type rules, LJ {lj}")
+    OUT.write_text(json.dumps(data, indent=1) + chr(10), encoding="utf-8", newline=chr(10))
+    print(f"wrote {OUT}: {len(data['atom_types'])} atom-type rules")
     return 0
 
 

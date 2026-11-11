@@ -124,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     job = job.get("job", job)
     print("submitted job", job["id"], "to", args.host)
+    if not args.smoke:  # build_parameters reads this list
+        with open(Path(__file__).with_name("jobs.txt"), "a", encoding="ascii") as fh:
+            fh.write(job["id"] + " " + job.get("name", "") + chr(10))
     print("fetch results with: python -m fitting.run_all --fetch", job["id"])
     return 0
 
