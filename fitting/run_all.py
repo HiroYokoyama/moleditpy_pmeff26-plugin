@@ -7,6 +7,7 @@ with *Local API* switched on):
 
     python -m fitting.run_all                 # everything (train + validate + scans)
     python -m fitting.run_all --smoke         # 4 quick jobs to check the setup
+    python -m fitting.run_all --retry JOB_ID  # rerun only what FAILED in that job
     python -m fitting.run_all --fetch JOB_ID  # download results into reference/raw
 
 The job runs ``python3 run_pack.py pack.tgz`` on the host; it resumes where it
@@ -38,12 +39,29 @@ def client():
     return JobManagerClient()
 
 
-def build_pack(smoke: bool) -> Path:
+def failed_ids(job_id: str) -> list[str]:
+    """Job ids the remote driver logged as FAILED for Job Manager job *job_id*."""
+    reply = client().request(
+        "GET", f"/jobs/{job_id}/log?file=progress.log&lines=5000"
+    )
+    text = reply.get("text") or reply.get("log") or ""
+    if isinstance(text, list):
+        text = chr(10).join(text)
+    state = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 4 and parts[3] in ("done", "FAILED"):
+            state[parts[2]] = parts[3]
+    return sorted(j for j, s in state.items() if s == "FAILED")
+
+
+def build_pack(smoke: bool, ids: list[str] | None = None) -> Path:
     from . import make_pack
 
-    out = REPO / "reference" / ("smoke" if smoke else "pack")
+    out = REPO / "reference" / ("smoke" if smoke else "retry" if ids else "pack")
     shutil.rmtree(out, ignore_errors=True)
-    if make_pack.main(["--out", str(out)]) != 0:
+    argv = ["--out", str(out)] + (["--ids", *ids] if ids else [])
+    if make_pack.main(argv) != 0:
         raise SystemExit("dataset problems reported above; fix them first")
     if smoke:
         manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
@@ -71,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="build the pack only")
     ap.add_argument("--fetch", metavar="JOB_ID")
+    ap.add_argument("--retry", metavar="JOB_ID",
+                    help="resubmit only the jobs that FAILED in this earlier run")
     args = ap.parse_args(argv)
 
     if args.fetch:
@@ -80,13 +100,19 @@ def main(argv: list[str] | None = None) -> int:
         print("downloaded:", reply.get("files"))
         return 0
 
-    out = build_pack(args.smoke)
+    ids = None
+    if args.retry:
+        ids = failed_ids(args.retry)
+        print(f"{len(ids)} failed jobs to retry")
+        if not ids:
+            return 0
+    out = build_pack(args.smoke, ids)
     print("pack:", out / "pack.tgz")
     if args.dry_run:
         return 0
     job = client().submit(
         host=args.host,
-        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-reference",
+        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-ref-retry" if ids else "pmeff26-reference",
         files=[str(out / "pack.tgz"), str(Path(__file__).with_name("run_pack.py"))],
         command="python3 run_pack.py pack.tgz",
         cpus_per_task=8,

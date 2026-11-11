@@ -20,6 +20,7 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolTransforms
 
@@ -56,6 +57,14 @@ def build_mol(smiles: str) -> Chem.Mol:
             AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
     except Exception:  # pragma: no cover - a cleanup failure is not fatal
         pass
+    # GAMESS's Cartesian optimizer aborts on exactly linear or planar starts
+    # (wrong count of zero modes in its guess Hessian): break the symmetry.
+    rng = np.random.RandomState(SEED)
+    conf = mol.GetConformer()
+    for idx in range(mol.GetNumAtoms()):
+        p = conf.GetAtomPosition(idx)
+        d = rng.uniform(-0.02, 0.02, 3)
+        conf.SetAtomPosition(idx, (p.x + d[0], p.y + d[1], p.z + d[2]))
     return mol
 
 
@@ -115,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--only", nargs="*", default=["tr", "va", "sc"])
     ap.add_argument("--limit", type=int, default=0, help="first N of each set")
+    ap.add_argument("--ids", nargs="*", default=None, help="keep only these job ids")
     args = ap.parse_args(argv)
 
     inp_dir = args.out / "inp"
@@ -176,6 +186,12 @@ def main(argv: list[str] | None = None) -> int:
         rec.update(label=label, dihedral=[i, j, k, l], n_points=npts)
         manifest.append(rec)
 
+    if args.ids is not None:
+        wanted = set(args.ids)
+        manifest = [r for r in manifest if r["id"] in wanted]
+        for path in list(inp_dir.iterdir()):
+            if path.stem not in wanted:
+                path.unlink()
     # Small jobs first so data accrues early; nprocs groups stay together.
     manifest.sort(key=lambda r: (r["nprocs"], r["kind"] == "scan", r["n_atoms"]))
     for nprocs in (2, 4):
