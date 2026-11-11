@@ -58,7 +58,8 @@ def failed_ids(job_id: str) -> list[str]:
 def build_pack(smoke: bool, ids: list[str] | None = None, only: list[str] | None = None) -> Path:
     from . import make_pack
 
-    out = REPO / "reference" / ("smoke" if smoke else "retry" if ids else "pack")
+    name = "smoke" if smoke else "retry" if ids else "pack-" + "-".join(only) if only else "pack"
+    out = REPO / "reference" / name
     shutil.rmtree(out, ignore_errors=True)
     argv = ["--out", str(out)] + (["--ids", *ids] if ids else []) + (["--only", *only] if only else [])
     if make_pack.main(argv) != 0:
