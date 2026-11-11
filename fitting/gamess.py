@@ -25,12 +25,14 @@ def gamess_input(
     hessian: bool,
     frozen_dihedral: tuple[int, int, int, int] | None = None,
     frozen_value: float = 0.0,
+    functional: str = "wB97X-D",
+    d3bj: bool = False,
 ) -> str:
     """Return a GAMESS optimization input (optionally + Hessian, or constrained)."""
     use_ecp = any(_BASIS[s]["ecp"] for s in symbols)
     n = len(symbols)
     contrl = [
-        " $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE DFTTYP=wB97X-D ISPHER=1",
+        f" $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE DFTTYP={functional} ISPHER=1",
         "  MAXIT=200 ICHARG=0 MULT=1",
     ]
     if frozen_dihedral is not None:
@@ -41,7 +43,7 @@ def gamess_input(
     lines = contrl + [
         " $SYSTEM MWORDS=300 $END",
         " $SCF DIRSCF=.TRUE. NCONV=7 $END",
-        " $DFT NRAD=99 NLEB=590 $END",
+        " $DFT NRAD=99 NLEB=590" + (" DC=.TRUE. IDCVER=4" if d3bj else "") + " $END",
     ]
     if frozen_dihedral is not None:
         i, j, k, l = (x + 1 for x in frozen_dihedral)

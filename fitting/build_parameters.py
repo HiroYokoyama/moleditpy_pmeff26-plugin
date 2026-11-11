@@ -18,9 +18,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from . import collect, fit
+from . import collect, fit, level
 
-JOBS_FILE = Path(__file__).with_name("jobs.txt")
+JOBS_FILE = level.JOBS_FILE
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -24,6 +24,8 @@ import sys
 import tarfile
 from pathlib import Path
 
+from . import level
+
 REPO = Path(__file__).resolve().parents[1]
 SMOKE_SMILES = {"O", "CI", "CC"}
 SMOKE_SCAN = "ethane"
@@ -55,13 +57,14 @@ def failed_ids(job_id: str) -> list[str]:
     return sorted(j for j, s in state.items() if s == "FAILED")
 
 
-def build_pack(smoke: bool, ids: list[str] | None = None, only: list[str] | None = None) -> Path:
+def build_pack(smoke: bool, ids: list[str] | None = None, only: list[str] | None = None,
+               extra: list[str] | None = None) -> Path:
     from . import make_pack
 
     name = "smoke" if smoke else "retry" if ids else "pack-" + "-".join(only) if only else "pack"
-    out = REPO / "reference" / name
+    out = level.REF / name
     shutil.rmtree(out, ignore_errors=True)
-    argv = ["--out", str(out)] + (["--ids", *ids] if ids else []) + (["--only", *only] if only else [])
+    argv = ["--out", str(out)] + (["--ids", *ids] if ids else []) + (["--only", *only] if only else []) + (extra or [])
     if make_pack.main(argv) != 0:
         raise SystemExit("dataset problems reported above; fix them first")
     if smoke:
@@ -90,13 +93,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="build the pack only")
     ap.add_argument("--fetch", metavar="JOB_ID")
+    ap.add_argument("--functional", default="wB97X-D", help="GAMESS DFTTYP (use with PMEFF26_LEVEL)")
+    ap.add_argument("--d3bj", action="store_true", help="add Grimme D3(BJ) dispersion")
     ap.add_argument("--only", nargs="*", help="sets to run: tr va sc mt (default all)")
     ap.add_argument("--retry", metavar="JOB_ID",
                     help="resubmit only the jobs that FAILED in this earlier run")
     args = ap.parse_args(argv)
 
     if args.fetch:
-        into = REPO / "reference" / "raw"
+        into = level.REF / "raw"
         into.mkdir(parents=True, exist_ok=True)
         reply = client().download(args.fetch, wait=True, into=str(into))
         print("downloaded:", reply.get("files"))
@@ -108,13 +113,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(ids)} failed jobs to retry")
         if not ids:
             return 0
-    out = build_pack(args.smoke, ids, args.only)
+    extra = ["--functional", args.functional] + (["--d3bj"] if args.d3bj else [])
+    out = build_pack(args.smoke, ids, args.only, extra)
     print("pack:", out / "pack.tgz")
     if args.dry_run:
         return 0
     job = client().submit(
         host=args.host,
-        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-ref-retry" if ids else "pmeff26-ref-" + "-".join(args.only) if args.only else "pmeff26-reference",
+        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-ref-retry" + level.SUFFIX if ids else "pmeff26-ref-" + "-".join(args.only) + level.SUFFIX if args.only else "pmeff26-reference" + level.SUFFIX,
         files=[str(out / "pack.tgz"), str(Path(__file__).with_name("run_pack.py"))],
         command="python3 run_pack.py pack.tgz",
         cpus_per_task=8,
@@ -125,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
     job = job.get("job", job)
     print("submitted job", job["id"], "to", args.host)
     if not args.smoke:  # build_parameters reads this list
-        with open(Path(__file__).with_name("jobs.txt"), "a", encoding="ascii") as fh:
+        with open(level.JOBS_FILE, "a", encoding="ascii") as fh:
             fh.write(job["id"] + " " + job.get("name", "") + chr(10))
     print("fetch results with: python -m fitting.run_all --fetch", job["id"])
     return 0

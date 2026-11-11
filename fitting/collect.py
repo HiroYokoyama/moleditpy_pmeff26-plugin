@@ -26,8 +26,10 @@ from pathlib import Path
 
 import numpy as np
 
+from . import level
+
 REPO = Path(__file__).resolve().parents[1]
-REF = REPO / "reference"
+REF = level.REF
 RAW = REF / "raw"
 HARTREE_KCAL = 627.5095
 BOHR = 0.52917721
@@ -54,16 +56,27 @@ def fetch(job_id: str) -> int:
     listing = cl.request("GET", f"/hosts/{host}/files?path={remote}&depth=1")
     names = [n for n in listing.get("entries", listing.get("files", [])) if not n.endswith("/")]
     RAW.mkdir(parents=True, exist_ok=True)
+    # A job that failed in an earlier run and succeeded in a retry must
+    # replace the old files: only ids already marked done locally are skipped.
+    def job_of(name: str) -> str:
+        return name.split(".")[0]
+
+    done_here = {job_of(p.name) for p in RAW.glob("*.done")}
+    done_there = {job_of(n) for n in names if n.endswith(".done")}
     want = [
         n for n in names
-        if n.endswith((".gz", ".json", ".done", ".failed")) and not (RAW / n).exists()
+        if n.endswith((".gz", ".json", ".done", ".failed"))
+        and job_of(n) not in done_here
+        and (job_of(n) in done_there or not (RAW / n).exists())
     ]
+    for job in done_there - done_here:
+        (RAW / f"{job}.failed").unlink(missing_ok=True)
     for start in range(0, len(want), 100):
         chunk = want[start : start + 100]
         cl.request(
             "POST",
             f"/hosts/{host}/download",
-            {"paths": [f"{remote}/{n}" for n in chunk], "into": str(RAW)},
+            {"paths": [f"{remote}/{n}" for n in chunk], "into": str(RAW), "overwrite": True},
         )
     print(f"{job_id}: {len(names)} remote result files, {len(want)} downloaded")
     return len(want)

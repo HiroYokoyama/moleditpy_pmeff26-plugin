@@ -53,13 +53,17 @@ from pmeff26_plugin.parameters import (
     ParameterSet,
 )
 
+from . import level
+
+LEVEL = "wB97X-D/def2-TZVP (GAMESS)"
 REPO = Path(__file__).resolve().parents[1]
-REF = REPO / "reference"
+REF = level.REF
+if level.NAME:
+    LEVEL = f"{level.NAME}/def2-TZVP (GAMESS)"
 HARTREE_KCAL = 627.5095
 DEBYE_PER_EA = 4.80321
 W_GRAD = 20.0  # weight of gradient rows relative to Hessian rows
 RIDGE_TORSION = 0.05
-LEVEL = "wB97X-D/def2-TZVP (GAMESS)"
 
 
 def mol_of(record):
@@ -509,10 +513,10 @@ def main(argv: list[str] | None = None) -> int:
 
     skeleton = init_parameters.skeleton()
     data, report = fit(records, hessians, skeleton)
-    DEFAULT_FILE.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
+    level.PARAMETER_FILE.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
     (REF / "fit_report.md").write_text(report, encoding="utf-8", newline="\n")
     print(report)
-    print("wrote", DEFAULT_FILE, "and", REF / "fit_report.md")
+    print("wrote", level.PARAMETER_FILE, "and", REF / "fit_report.md")
     return 0
 
 

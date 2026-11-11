@@ -220,7 +220,9 @@ __marimo__/
 # PMEFF26 runtime options (user state, not source)
 pmeff26_plugin/settings.json
 .pytest-tmp/
-/reference/pack/
-/reference/smoke/
-/reference/raw/
-/reference/
+# Reference data: job packs are regenerated; GAMESS .dat files (orbitals) are
+# large and their Hessians are already in reference_hessians.npz.
+/reference*/pack*/
+/reference*/smoke/
+/reference*/retry/
+/reference*/raw/*.dat.gz

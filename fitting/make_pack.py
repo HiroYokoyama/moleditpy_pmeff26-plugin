@@ -128,6 +128,9 @@ def nprocs_for(mol: Chem.Mol) -> int:
     return 4 if (has_metal(mol) and mol.GetNumAtoms() > 3) or n_heavy(mol) > 6 else 2
 
 
+FUNCTIONAL = {"functional": "wB97X-D", "d3bj": False}
+
+
 def write_input(path: Path, job_id: str, mol: Chem.Mol, hessian: bool,
                 frozen=None, value: float = 0.0) -> None:
     conf = mol.GetConformer()
@@ -140,6 +143,7 @@ def write_input(path: Path, job_id: str, mol: Chem.Mol, hessian: bool,
         hessian=hessian,
         frozen_dihedral=frozen,
         frozen_value=value,
+        **FUNCTIONAL,
     )
     path.write_text(text, encoding="ascii", newline="\n")
 
@@ -177,8 +181,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--only", nargs="*", default=["tr", "va", "sc", "mt"])
     ap.add_argument("--limit", type=int, default=0, help="first N of each set")
     ap.add_argument("--ids", nargs="*", default=None, help="keep only these job ids")
+    ap.add_argument("--functional", default="wB97X-D", help="GAMESS DFTTYP")
+    ap.add_argument("--d3bj", action="store_true", help="add Grimme D3(BJ)")
     args = ap.parse_args(argv)
 
+    FUNCTIONAL.update(functional=args.functional, d3bj=args.d3bj)
     inp_dir = args.out / "inp"
     inp_dir.mkdir(parents=True, exist_ok=True)
     manifest: list[dict] = []

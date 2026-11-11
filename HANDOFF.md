@@ -64,6 +64,25 @@ Local API switched on.
 | `python -m fitting.init_parameters --force` | Reset the parameter file to the unfitted skeleton |
 | `python -m pytest tests -q -n auto` | Tests (29 pass) |
 
+## Another DFT level
+
+Set `PMEFF26_LEVEL` to keep a second reference set fully separate
+(`reference-<name>/`, `fitting/jobs-<name>.txt`, `parameters/pmeff26-<name>.json`):
+
+```bash
+PMEFF26_LEVEL=b3lyp python -m fitting.run_all --functional B3LYP --d3bj
+```
+
+```bash
+PMEFF26_LEVEL=b3lyp python -m fitting.build_parameters
+```
+
+In PowerShell set it first with `$env:PMEFF26_LEVEL = "b3lyp"`. The plugin only
+loads `pmeff26.json`; copy a level's file over it to adopt that level. This
+refits charges and bonded terms. The van der Waals values are not fitted at
+any level (that needs intermolecular reference calculations, which are not in
+the set).
+
 ## Known gaps and risks
 
 - **Run time.** GAMESS has no analytic DFT Hessian and no density fitting.
@@ -103,5 +122,6 @@ fitting/               reference-data and fitting tools (not released)
   make_pack.py         GAMESS inputs;  run_pack.py  remote driver
   run_all.py           submit;  collect.py  extract;  fit.py  fit
   build_parameters.py  collect + fit in one command
-reference/             downloaded results and reports (git-ignored)
+reference/             downloaded GAMESS outputs (raw/*.out.gz), extracted data and reports;
+                       committed, except job packs and the large .dat orbital files
 ```
