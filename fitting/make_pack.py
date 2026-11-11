@@ -31,8 +31,53 @@ SCAN_START = -170.0
 SCAN_STEP = 15.0
 
 
+_VERTICES = {
+    "sqp": [(1, 0, 0), (0, 1, 0), (-1, 0, 0), (0, -1, 0)],
+    "oct": [(1, 0, 0), (0, 1, 0), (0, 0, 1), (-1, 0, 0), (0, -1, 0), (0, 0, -1)],
+}
+
+
+def _embed_with_hint(mol, params, hint: str, smiles: str) -> None:
+    """Embed with the metal's donor atoms pinned to ideal polyhedron vertices.
+
+    Donors are sorted by element so identical ligands sit on adjacent vertices
+    (the cis isomer of a square-planar MA2B2 complex).
+    """
+    from rdkit.Geometry import Point3D
+
+    metal = next(a for a in mol.GetAtoms() if a.GetSymbol() in dataset.METAL_ELEMENTS)
+    donors = sorted(metal.GetNeighbors(), key=lambda a: (a.GetAtomicNum(), a.GetIdx()))
+    vertices = _VERTICES[hint]
+    if len(donors) != len(vertices):
+        raise ValueError(f"{hint} needs {len(vertices)} donors: {smiles}")
+    table = Chem.GetPeriodicTable()
+    coord_map = {metal.GetIdx(): Point3D(0.0, 0.0, 0.0)}
+    for donor, (x, y, z) in zip(donors, vertices):
+        d = table.GetRcovalent(metal.GetAtomicNum()) + table.GetRcovalent(donor.GetAtomicNum())
+        coord_map[donor.GetIdx()] = Point3D(x * d, y * d, z * d)
+    params.SetCoordMap(coord_map)
+    params.useRandomCoords = True
+    if AllChem.EmbedMolecule(mol, params) == 0:
+        return
+    # Distance geometry failed (e.g. hexacarbonyls): lay each ligand out along
+    # its vertex ray. Only valid for unbranched ligands such as CO or CN.
+    conf = Chem.Conformer(mol.GetNumAtoms())
+    conf.SetAtomPosition(metal.GetIdx(), Point3D(0.0, 0.0, 0.0))
+    for donor, (x, y, z) in zip(donors, vertices):
+        prev, atom, dist = metal, donor, 0.0
+        while atom is not None:
+            dist += 0.9 * (table.GetRcovalent(prev.GetAtomicNum()) + table.GetRcovalent(atom.GetAtomicNum()))
+            conf.SetAtomPosition(atom.GetIdx(), Point3D(x * dist, y * dist, z * dist))
+            nxt = [n for n in atom.GetNeighbors() if n.GetIdx() != prev.GetIdx()]
+            if len(nxt) > 1:
+                raise ValueError(f"embedding failed (branched ligand): {smiles}")
+            prev, atom = atom, (nxt[0] if nxt else None)
+    mol.AddConformer(conf, assignId=True)
+
+
 def build_mol(smiles: str) -> Chem.Mol:
     """Return an H-complete molecule with one MMFF/UFF-relaxed 3D conformer."""
+    smiles, _, hint = smiles.partition("|")
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"bad SMILES: {smiles}")
@@ -40,23 +85,26 @@ def build_mol(smiles: str) -> Chem.Mol:
         raise ValueError(f"not neutral: {smiles}")
     if any(a.GetNumRadicalElectrons() for a in mol.GetAtoms()):
         raise ValueError(f"radical: {smiles}")
-    bad = {a.GetSymbol() for a in mol.GetAtoms()} - dataset.ALLOWED_ELEMENTS
+    bad = {a.GetSymbol() for a in mol.GetAtoms()} - dataset.ALLOWED_ELEMENTS - dataset.METAL_ELEMENTS
     if bad:
         raise ValueError(f"elements outside the fit {sorted(bad)}: {smiles}")
     mol = Chem.AddHs(mol)
     params = AllChem.ETKDGv3()
     params.randomSeed = SEED
-    if AllChem.EmbedMolecule(mol, params) != 0:
-        params.useRandomCoords = True
+    if hint:
+        _embed_with_hint(mol, params, hint, smiles)
+    else:
         if AllChem.EmbedMolecule(mol, params) != 0:
-            raise ValueError(f"embedding failed: {smiles}")
-    try:
-        if AllChem.MMFFHasAllMoleculeParams(mol):
-            AllChem.MMFFOptimizeMolecule(mol, maxIters=2000)
-        elif AllChem.UFFHasAllMoleculeParams(mol):
-            AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
-    except Exception:  # pragma: no cover - a cleanup failure is not fatal
-        pass
+            params.useRandomCoords = True
+            if AllChem.EmbedMolecule(mol, params) != 0:
+                raise ValueError(f"embedding failed: {smiles}")
+        try:
+            if AllChem.MMFFHasAllMoleculeParams(mol):
+                AllChem.MMFFOptimizeMolecule(mol, maxIters=2000)
+            elif AllChem.UFFHasAllMoleculeParams(mol):
+                AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
+        except Exception:  # pragma: no cover - a cleanup failure is not fatal
+            pass
     # GAMESS's Cartesian optimizer aborts on exactly linear or planar starts
     # (wrong count of zero modes in its guess Hessian): break the symmetry.
     rng = np.random.RandomState(SEED)
@@ -72,8 +120,12 @@ def n_heavy(mol: Chem.Mol) -> int:
     return sum(1 for a in mol.GetAtoms() if a.GetAtomicNum() > 1)
 
 
+def has_metal(mol: Chem.Mol) -> bool:
+    return any(a.GetSymbol() in dataset.METAL_ELEMENTS for a in mol.GetAtoms())
+
+
 def nprocs_for(mol: Chem.Mol) -> int:
-    return 2 if n_heavy(mol) <= 6 else 4
+    return 4 if (has_metal(mol) and mol.GetNumAtoms() > 3) or n_heavy(mol) > 6 else 2
 
 
 def write_input(path: Path, job_id: str, mol: Chem.Mol, hessian: bool,
@@ -122,7 +174,7 @@ def record(job_id: str, kind: str, smiles: str, mol: Chem.Mol) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--only", nargs="*", default=["tr", "va", "sc"])
+    ap.add_argument("--only", nargs="*", default=["tr", "va", "sc", "mt"])
     ap.add_argument("--limit", type=int, default=0, help="first N of each set")
     ap.add_argument("--ids", nargs="*", default=None, help="keep only these job ids")
     args = ap.parse_args(argv)
@@ -136,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     for prefix, smiles_list, kind in (
         ("tr", dataset.train_smiles(), "train"),
         ("va", dataset.validate_smiles(), "validate"),
+        ("mt", dataset.metal_smiles(), "train"),
     ):
         for n, smiles in enumerate(smiles_list, 1):
             job_id = f"{prefix}_{n:03d}"

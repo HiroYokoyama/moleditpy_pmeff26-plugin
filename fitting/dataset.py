@@ -20,6 +20,40 @@ ALLOWED_ELEMENTS = frozenset(
     {"H", "B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br", "I"}
 )
 
+# First metal set: neutral closed-shell species only (the reference runs are
+# restricted singlets). No pi-complexes (hapticity) and no 5-coordinate
+# centres yet. Dative bonds use the SMILES "->" notation. A "|sqp" or "|oct"
+# suffix asks make_pack for a square-planar (cis) or octahedral start geometry.
+METAL_ELEMENTS = frozenset(
+    {"Li", "Na", "K", "Mg", "Ca", "Al", "Ti", "Cr", "Ni", "Cu", "Zn", "Ge",
+     "Pd", "Sn", "Pt", "Hg"}
+)
+
+METAL = """
+# --- s block
+[Li]C [Li]Cl [Li]F [Li]O [Li]N [Na]Cl [Na]F [Na]O [K]Cl [K]F [K]O
+Cl[Mg]Cl F[Mg]F C[Mg]C C[Mg]Cl O[Mg]O Cl[Ca]Cl F[Ca]F O[Ca]O
+# --- aluminium
+[AlH3] Cl[Al](Cl)Cl F[Al](F)F C[Al](C)C O[Al](O)O C[Al](C)Cl
+[NH3+][Al-](Cl)(Cl)Cl C[O+](C)[Al-](C)(C)C
+# --- germanium, tin
+[GeH4] C[Ge](C)(C)C Cl[Ge](Cl)(Cl)Cl C[GeH3] F[Ge](F)(F)F
+[SnH4] C[Sn](C)(C)C Cl[Sn](Cl)(Cl)Cl C[SnH3]
+# --- titanium(IV)
+Cl[Ti](Cl)(Cl)Cl F[Ti](F)(F)F O[Ti](O)(O)O C[Ti](Cl)(Cl)Cl C[Ti](C)(C)C
+# --- zinc, mercury (d10)
+Cl[Zn]Cl F[Zn]F Br[Zn]Br I[Zn]I C[Zn]C C[Zn]Cl O[Zn]O S[Zn]S
+[NH3]->[Zn](Cl)(Cl)<-[NH3] Cl[Hg]Cl C[Hg]C C[Hg]Cl
+# --- copper(I)
+[Cu]Cl [Cu]C [Cu]C#N [NH3]->[Cu]Cl [PH3]->[Cu]Cl
+# --- carbonyls
+O=C=[Ni](=C=O)(=C=O)=C=O
+O=C=[Cr](=C=O)(=C=O)(=C=O)(=C=O)=C=O|oct
+# --- square-planar d8
+[NH3]->[Pd](Cl)(Cl)<-[NH3]|sqp [PH3]->[Pd](Cl)(Cl)<-[PH3]|sqp
+[NH3]->[Pt](Cl)(Cl)<-[NH3]|sqp [PH3]->[Pt](Cl)(Cl)<-[PH3]|sqp
+"""
+
 TRAIN = """
 # --- hydrides and diatomics
 [HH] C N O F [SiH4] P S Cl Br I B
@@ -211,3 +245,7 @@ def train_smiles() -> list[str]:
 
 def validate_smiles() -> list[str]:
     return _parse(VALIDATE)
+
+
+def metal_smiles() -> list[str]:
+    return _parse(METAL)

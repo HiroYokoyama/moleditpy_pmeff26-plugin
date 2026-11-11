@@ -55,12 +55,12 @@ def failed_ids(job_id: str) -> list[str]:
     return sorted(j for j, s in state.items() if s == "FAILED")
 
 
-def build_pack(smoke: bool, ids: list[str] | None = None) -> Path:
+def build_pack(smoke: bool, ids: list[str] | None = None, only: list[str] | None = None) -> Path:
     from . import make_pack
 
     out = REPO / "reference" / ("smoke" if smoke else "retry" if ids else "pack")
     shutil.rmtree(out, ignore_errors=True)
-    argv = ["--out", str(out)] + (["--ids", *ids] if ids else [])
+    argv = ["--out", str(out)] + (["--ids", *ids] if ids else []) + (["--only", *only] if only else [])
     if make_pack.main(argv) != 0:
         raise SystemExit("dataset problems reported above; fix them first")
     if smoke:
@@ -89,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="build the pack only")
     ap.add_argument("--fetch", metavar="JOB_ID")
+    ap.add_argument("--only", nargs="*", help="sets to run: tr va sc mt (default all)")
     ap.add_argument("--retry", metavar="JOB_ID",
                     help="resubmit only the jobs that FAILED in this earlier run")
     args = ap.parse_args(argv)
@@ -106,13 +107,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{len(ids)} failed jobs to retry")
         if not ids:
             return 0
-    out = build_pack(args.smoke, ids)
+    out = build_pack(args.smoke, ids, args.only)
     print("pack:", out / "pack.tgz")
     if args.dry_run:
         return 0
     job = client().submit(
         host=args.host,
-        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-ref-retry" if ids else "pmeff26-reference",
+        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-ref-retry" if ids else "pmeff26-ref-" + "-".join(args.only) if args.only else "pmeff26-reference",
         files=[str(out / "pack.tgz"), str(Path(__file__).with_name("run_pack.py"))],
         command="python3 run_pack.py pack.tgz",
         cpus_per_task=8,
