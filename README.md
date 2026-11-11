@@ -54,9 +54,8 @@ keeps the original geometry.
 ## Known limitations
 
 - The Lennard-Jones parameters are the per-element UFF values and are not
-  refit: the reference set contains no intermolecular data. The values for Ca, Cr,
-  Ni, Cu, Zn, Pd and Pt were entered from the published UFF table and are not
-  machine-verified.
+  refit: the reference set contains no intermolecular data. They are
+  hard-coded from RDKit's UFF table (`Code/ForceField/UFF/Params.cpp`).
 - Dispersion is only the r⁻⁶ part of that Lennard-Jones term; there is no
   separate D3-style correction.
 - The metal set has no held-out validation molecules yet.

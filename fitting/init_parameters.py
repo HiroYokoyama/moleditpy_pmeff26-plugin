@@ -7,7 +7,7 @@ tables and charge increments start empty and are filled by ``fitting.fit``
 from the reference DFT data; until then the engine refuses every molecule.
 
 The Lennard-Jones parameters are the per-element UFF values (Rappe et al.,
-J. Am. Chem. Soc. 114, 10024 (1992)), read from RDKit's UFF implementation.
+J. Am. Chem. Soc. 114, 10024 (1992)), hard-coded below from RDKit's UFF table.
 They are *not* refit: the reference set has no intermolecular data.
 
     python -m fitting.init_parameters [--force]
@@ -18,9 +18,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-
-from rdkit import Chem
-from rdkit.Chem import AllChem, rdForceFieldHelpers
 
 OUT = Path(__file__).resolve().parents[1] / "pmeff26_plugin" / "parameters" / "pmeff26.json"
 
@@ -97,36 +94,48 @@ ATOM_TYPES = [
     ("pt4", "[#78X4]", "Pt", {}),
 ]
 
-# One simple molecule per element to read RDKit's UFF like-pair LJ parameters.
-_PROBE = {
-    "H": "[HH]", "B": "BB", "C": "CC", "N": "NN", "O": "OO", "F": "FF",
-    "Si": "[SiH3][SiH3]", "P": "PP", "S": "SS", "Cl": "ClCl", "Br": "BrBr", "I": "II",
-    "Li": "[Li]Cl.[Li]Cl", "Na": "[Na]Cl.[Na]Cl", "K": "[K]Cl.[K]Cl",
-    "Mg": "Cl[Mg]Cl.Cl[Mg]Cl", "Al": "Cl[Al](Cl)Cl.Cl[Al](Cl)Cl",
-    "Ge": "[GeH4].[GeH4]", "Sn": "[SnH4].[SnH4]",
-    "Ti": "Cl[Ti](Cl)(Cl)Cl.Cl[Ti](Cl)(Cl)Cl", "Hg": "Cl[Hg]Cl.Cl[Hg]Cl",
-}
-
-
-# UFF x_I (Angstrom) and D_I (kcal/mol) for metals RDKit's UFF typer does not
-# type in the probe molecules. Entered from the published table (Rappe et al.
-# 1992, Table I); NOT machine-verified against an implementation.
-_UFF_TABLE = {
-    "Ca": (3.399, 0.238), "Cr": (3.023, 0.015), "Ni": (2.834, 0.015),
-    "Cu": (3.495, 0.005), "Zn": (2.763, 0.124), "Pd": (2.899, 0.048),
-    "Pt": (2.754, 0.080),
+# UFF van der Waals parameters: x1 (Angstrom, the like-pair minimum distance)
+# and D1 (kcal/mol, the well depth). Values are those of RDKit's UFF table,
+# Code/ForceField/UFF/Params.cpp (RDKit Release_2026_03; columns x1 and D1 of
+# the atom label given in the comment), which reproduces Table I of
+# Rappe et al., J. Am. Chem. Soc. 114, 10024 (1992). They are per element in
+# UFF, so the label only records which row was read. Not refit.
+UFF_VDW = {
+    "H": (2.886, 0.044),  # H_
+    "B": (4.083, 0.180),  # B_2
+    "C": (3.851, 0.105),  # C_3
+    "N": (3.660, 0.069),  # N_3
+    "O": (3.500, 0.060),  # O_3
+    "F": (3.364, 0.050),  # F_
+    "Si": (4.295, 0.402),  # Si3
+    "P": (4.147, 0.305),  # P_3+3
+    "S": (4.035, 0.274),  # S_3+2
+    "Cl": (3.947, 0.227),  # Cl
+    "Br": (4.189, 0.251),  # Br
+    "I": (4.500, 0.339),  # I_
+    "Li": (2.451, 0.025),  # Li
+    "Na": (2.983, 0.030),  # Na
+    "K": (3.812, 0.035),  # K_
+    "Mg": (3.021, 0.111),  # Mg3+2
+    "Ca": (3.399, 0.238),  # Ca6+2
+    "Al": (4.499, 0.505),  # Al3
+    "Ge": (4.280, 0.379),  # Ge3
+    "Sn": (4.392, 0.567),  # Sn3
+    "Ti": (3.175, 0.017),  # Ti3+4
+    "Cr": (3.023, 0.015),  # Cr6+3
+    "Ni": (2.834, 0.015),  # Ni4+2
+    "Cu": (3.495, 0.005),  # Cu3+1
+    "Zn": (2.763, 0.124),  # Zn3+2
+    "Pd": (2.899, 0.048),  # Pd4+2
+    "Pt": (2.754, 0.080),  # Pt4+2
+    "Hg": (2.705, 0.385),  # Hg1+2
 }
 
 
 def uff_lj(symbol: str) -> list[float]:
     """Return [rmin/2, epsilon] of the UFF like-pair potential for *symbol*."""
-    if symbol in _UFF_TABLE:
-        x_i, d_i = _UFF_TABLE[symbol]
-        return [round(x_i / 2.0, 4), d_i]
-    mol = Chem.AddHs(Chem.MolFromSmiles(_PROBE[symbol]))
-    idx = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() == symbol][:2]
-    x_ij, d_ij = rdForceFieldHelpers.GetUFFVdWParams(mol, idx[0], idx[1])
-    return [round(x_ij / 2.0, 4), round(d_ij, 4)]
+    x1, d1 = UFF_VDW[symbol]
+    return [round(x1 / 2.0, 4), d1]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -134,14 +143,14 @@ def main(argv: list[str] | None = None) -> int:
     if OUT.exists() and "--force" not in argv:
         print(f"{OUT} exists; pass --force to overwrite (this discards fitted values)")
         return 1
-    lj = {el: uff_lj(el) for el in list(_PROBE) + list(_UFF_TABLE)}
+    lj = {el: uff_lj(el) for el in UFF_VDW}
     data = {
         "name": "PMEFF26",
         "version": "0.0.0-unfitted",
         "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
         "reference": "not fitted yet",
-        "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit; "
-        "Ca, Cr, Ni, Cu, Zn, Pd, Pt entered from the published table, unverified",
+        "vdw_source": "UFF per-element Lennard-Jones, values from RDKit "
+        "Code/ForceField/UFF/Params.cpp (Rappe et al. 1992 Table I); not refit",
         "scale14": {"vdw": 0.5, "elec": 0.8333},
         "atom_types": [
             dict({"type": name, "smarts": smarts, "element": el}, **flags)

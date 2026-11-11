@@ -3,7 +3,7 @@
  "version": "0.0.0-unfitted",
  "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
  "reference": "not fitted yet",
- "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit; Ca, Cr, Ni, Cu, Zn, Pd, Pt entered from the published table, unverified",
+ "vdw_source": "UFF per-element Lennard-Jones, values from RDKit Code/ForceField/UFF/Params.cpp (Rappe et al. 1992 Table I); not refit",
  "scale14": {
   "vdw": 0.5,
   "elec": 0.8333
