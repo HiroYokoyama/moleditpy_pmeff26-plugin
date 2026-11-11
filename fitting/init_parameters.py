@@ -74,19 +74,56 @@ ATOM_TYPES = [
     ("cl", "[#17]", "Cl", {}),
     ("br", "[#35]", "Br", {}),
     ("i", "[#53]", "I", {}),
+    # Metals: typed by element and coordination number. Neutral closed-shell
+    # species only; no pi-complexes and no 5-coordinate centres.
+    ("li1", "[#3X1]", "Li", {}),
+    ("na1", "[#11X1]", "Na", {}),
+    ("k1", "[#19X1]", "K", {}),
+    ("mg2", "[#12X2]", "Mg", {"linear": True}),
+    ("ca2", "[#20X2]", "Ca", {}),
+    ("al3", "[#13X3]", "Al", {"planar": True}),
+    ("al4", "[#13X4]", "Al", {}),
+    ("ge4", "[#32X4]", "Ge", {}),
+    ("sn4", "[#50X4]", "Sn", {}),
+    ("ti4", "[#22X4]", "Ti", {}),
+    ("cr6", "[#24X6]", "Cr", {}),
+    ("ni4", "[#28X4]", "Ni", {}),
+    ("cu1", "[#29X1]", "Cu", {}),
+    ("cu2", "[#29X2]", "Cu", {"linear": True}),
+    ("zn2", "[#30X2]", "Zn", {"linear": True}),
+    ("zn4", "[#30X4]", "Zn", {}),
+    ("hg2", "[#80X2]", "Hg", {"linear": True}),
+    ("pd4", "[#46X4]", "Pd", {}),
+    ("pt4", "[#78X4]", "Pt", {}),
 ]
 
 # One simple molecule per element to read RDKit's UFF like-pair LJ parameters.
 _PROBE = {
     "H": "[HH]", "B": "BB", "C": "CC", "N": "NN", "O": "OO", "F": "FF",
     "Si": "[SiH3][SiH3]", "P": "PP", "S": "SS", "Cl": "ClCl", "Br": "BrBr", "I": "II",
+    "Li": "[Li]Cl.[Li]Cl", "Na": "[Na]Cl.[Na]Cl", "K": "[K]Cl.[K]Cl",
+    "Mg": "Cl[Mg]Cl.Cl[Mg]Cl", "Al": "Cl[Al](Cl)Cl.Cl[Al](Cl)Cl",
+    "Ge": "[GeH4].[GeH4]", "Sn": "[SnH4].[SnH4]",
+    "Ti": "Cl[Ti](Cl)(Cl)Cl.Cl[Ti](Cl)(Cl)Cl", "Hg": "Cl[Hg]Cl.Cl[Hg]Cl",
+}
+
+
+# UFF x_I (Angstrom) and D_I (kcal/mol) for metals RDKit's UFF typer does not
+# type in the probe molecules. Entered from the published table (Rappe et al.
+# 1992, Table I); NOT machine-verified against an implementation.
+_UFF_TABLE = {
+    "Ca": (3.399, 0.238), "Cr": (3.023, 0.015), "Ni": (2.834, 0.015),
+    "Cu": (3.495, 0.005), "Zn": (2.763, 0.124), "Pd": (2.899, 0.048),
+    "Pt": (2.754, 0.080),
 }
 
 
 def uff_lj(symbol: str) -> list[float]:
     """Return [rmin/2, epsilon] of the UFF like-pair potential for *symbol*."""
+    if symbol in _UFF_TABLE:
+        x_i, d_i = _UFF_TABLE[symbol]
+        return [round(x_i / 2.0, 4), d_i]
     mol = Chem.AddHs(Chem.MolFromSmiles(_PROBE[symbol]))
-    AllChem.EmbedMolecule(mol, randomSeed=1)
     idx = [a.GetIdx() for a in mol.GetAtoms() if a.GetSymbol() == symbol][:2]
     x_ij, d_ij = rdForceFieldHelpers.GetUFFVdWParams(mol, idx[0], idx[1])
     return [round(x_ij / 2.0, 4), round(d_ij, 4)]
@@ -97,13 +134,14 @@ def main(argv: list[str] | None = None) -> int:
     if OUT.exists() and "--force" not in argv:
         print(f"{OUT} exists; pass --force to overwrite (this discards fitted values)")
         return 1
-    lj = {el: uff_lj(el) for el in _PROBE}
+    lj = {el: uff_lj(el) for el in list(_PROBE) + list(_UFF_TABLE)}
     data = {
         "name": "PMEFF26",
         "version": "0.0.0-unfitted",
         "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
         "reference": "not fitted yet",
-        "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit",
+        "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit; "
+        "Ca, Cr, Ni, Cu, Zn, Pd, Pt entered from the published table, unverified",
         "scale14": {"vdw": 0.5, "elec": 0.8333},
         "atom_types": [
             dict({"type": name, "smarts": smarts, "element": el}, **flags)

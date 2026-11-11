@@ -3,7 +3,7 @@
  "version": "0.0.0-unfitted",
  "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
  "reference": "not fitted yet",
- "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit",
+ "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit; Ca, Cr, Ni, Cu, Zn, Pd, Pt entered from the published table, unverified",
  "scale14": {
   "vdw": 0.5,
   "elec": 0.8333
@@ -287,6 +287,106 @@
    "type": "i",
    "smarts": "[#53]",
    "element": "I"
+  },
+  {
+   "type": "li1",
+   "smarts": "[#3X1]",
+   "element": "Li"
+  },
+  {
+   "type": "na1",
+   "smarts": "[#11X1]",
+   "element": "Na"
+  },
+  {
+   "type": "k1",
+   "smarts": "[#19X1]",
+   "element": "K"
+  },
+  {
+   "type": "mg2",
+   "smarts": "[#12X2]",
+   "element": "Mg",
+   "linear": true
+  },
+  {
+   "type": "ca2",
+   "smarts": "[#20X2]",
+   "element": "Ca"
+  },
+  {
+   "type": "al3",
+   "smarts": "[#13X3]",
+   "element": "Al",
+   "planar": true
+  },
+  {
+   "type": "al4",
+   "smarts": "[#13X4]",
+   "element": "Al"
+  },
+  {
+   "type": "ge4",
+   "smarts": "[#32X4]",
+   "element": "Ge"
+  },
+  {
+   "type": "sn4",
+   "smarts": "[#50X4]",
+   "element": "Sn"
+  },
+  {
+   "type": "ti4",
+   "smarts": "[#22X4]",
+   "element": "Ti"
+  },
+  {
+   "type": "cr6",
+   "smarts": "[#24X6]",
+   "element": "Cr"
+  },
+  {
+   "type": "ni4",
+   "smarts": "[#28X4]",
+   "element": "Ni"
+  },
+  {
+   "type": "cu1",
+   "smarts": "[#29X1]",
+   "element": "Cu"
+  },
+  {
+   "type": "cu2",
+   "smarts": "[#29X2]",
+   "element": "Cu",
+   "linear": true
+  },
+  {
+   "type": "zn2",
+   "smarts": "[#30X2]",
+   "element": "Zn",
+   "linear": true
+  },
+  {
+   "type": "zn4",
+   "smarts": "[#30X4]",
+   "element": "Zn"
+  },
+  {
+   "type": "hg2",
+   "smarts": "[#80X2]",
+   "element": "Hg",
+   "linear": true
+  },
+  {
+   "type": "pd4",
+   "smarts": "[#46X4]",
+   "element": "Pd"
+  },
+  {
+   "type": "pt4",
+   "smarts": "[#78X4]",
+   "element": "Pt"
   }
  ],
  "vdw": {
@@ -473,6 +573,82 @@
   "i": [
    2.25,
    0.339
+  ],
+  "li1": [
+   1.2255,
+   0.025
+  ],
+  "na1": [
+   1.4915,
+   0.03
+  ],
+  "k1": [
+   1.906,
+   0.035
+  ],
+  "mg2": [
+   1.5105,
+   0.111
+  ],
+  "ca2": [
+   1.6995,
+   0.238
+  ],
+  "al3": [
+   2.2495,
+   0.505
+  ],
+  "al4": [
+   2.2495,
+   0.505
+  ],
+  "ge4": [
+   2.14,
+   0.379
+  ],
+  "sn4": [
+   2.196,
+   0.567
+  ],
+  "ti4": [
+   1.5875,
+   0.017
+  ],
+  "cr6": [
+   1.5115,
+   0.015
+  ],
+  "ni4": [
+   1.417,
+   0.015
+  ],
+  "cu1": [
+   1.7475,
+   0.005
+  ],
+  "cu2": [
+   1.7475,
+   0.005
+  ],
+  "zn2": [
+   1.3815,
+   0.124
+  ],
+  "zn4": [
+   1.3815,
+   0.124
+  ],
+  "hg2": [
+   1.3525,
+   0.385
+  ],
+  "pd4": [
+   1.4495,
+   0.048
+  ],
+  "pt4": [
+   1.377,
+   0.08
   ]
  },
  "pi": {

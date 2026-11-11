@@ -5,6 +5,8 @@ A conventional class-I molecular-mechanics energy function in real units
 
     E = sum_bonds     1/2 k (r - r0)^2
       + sum_angles    1/2 k (theta - theta0)^2      [k (1 + cos theta) if linear]
+                      (k/n^2) (1 - cos(n theta))    [periodic: metal centres whose
+                                                     ligands sit at 90 and 180 deg]
       + sum_torsions  1/2 V (1 + cos(n phi - gamma))   (propers and impropers)
       + sum_pairs     eps [(rmin/r)^12 - 2 (rmin/r)^6] + 332.0637 qi qj / r
       + E_pi          variational pi-electron energy (see below)
@@ -40,6 +42,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Optional, Tuple
 
 import numpy as np
+from numpy.polynomial import chebyshev as _cheb
 
 COULOMB = 332.0637  # kcal*Angstrom/(mol*e^2)
 LINEAR_THRESHOLD = np.radians(175.0)
@@ -65,6 +68,8 @@ class System:
     angle_idx: np.ndarray = field(default_factory=lambda: _empty((0, 3), int))
     angle_t0: np.ndarray = field(default_factory=lambda: _empty(0))
     angle_k: np.ndarray = field(default_factory=lambda: _empty(0))
+    # 0 = harmonic; n > 0 = periodic form (k/n^2)(1 - cos(n theta))
+    angle_n: np.ndarray = field(default_factory=lambda: _empty(0, int))
     tors_idx: np.ndarray = field(default_factory=lambda: _empty((0, 4), int))
     tors_v: np.ndarray = field(default_factory=lambda: _empty(0))
     tors_n: np.ndarray = field(default_factory=lambda: _empty(0))
@@ -229,8 +234,18 @@ def energy_and_gradient(
         e_harm = 0.5 * system.angle_k * dt * dt
         de_dcos_harm = -system.angle_k * dt / sin_t
         e_lin = system.angle_k * (1.0 + cos_t)
-        parts["angle"] = float(np.sum(np.where(linear, e_lin, e_harm)))
-        de_dcos = np.where(linear, system.angle_k, de_dcos_harm)[:, None]
+        e_ang = np.where(linear, e_lin, e_harm)
+        de_dcos = np.where(linear, system.angle_k, de_dcos_harm)
+        if len(system.angle_n) == len(e_ang):
+            for n in np.unique(system.angle_n[system.angle_n > 0]):
+                sel = system.angle_n == n
+                coef = np.zeros(int(n) + 1)
+                coef[-1] = 1.0  # Chebyshev T_n(cos theta) = cos(n theta)
+                scale = system.angle_k[sel] / float(n * n)
+                e_ang[sel] = scale * (1.0 - _cheb.chebval(cos_t[sel], coef))
+                de_dcos[sel] = -scale * _cheb.chebval(cos_t[sel], _cheb.chebder(coef))
+        parts["angle"] = float(np.sum(e_ang))
+        de_dcos = de_dcos[:, None]
         gi = de_dcos * dcos_i
         gk = de_dcos * dcos_k
         np.add.at(grad, i, gi)

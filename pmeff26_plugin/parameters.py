@@ -10,6 +10,8 @@ Key formats (types are the names from ``atom_types``):
 * bond      ``a-b``, ``a=b``, ``a#b``, ``a:b`` (aromatic); types sorted
 * angle     ``a|center|c`` with the two ends sorted; ``@3`` / ``@4`` appended
             when the three atoms share a 3- or 4-membered ring
+            value ``[theta0, k]``, or ``["periodic", n, k]`` for the form
+            ``(k/n^2)(1 - cos(n theta))`` used at square-planar/octahedral metals
 * torsion   ``a|b-c|d`` (central bond written like a bond key); the generic
             form ``*|b-c|*`` gives a per-bond barrier shared by all its paths
 * improper  center type -> barrier of the 2-fold out-of-plane term

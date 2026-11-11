@@ -149,7 +149,7 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
             charges[first] += inc
             charges[second] -= inc
 
-    angle_idx, angle_t0, angle_k, angle_keys = [], [], [], []
+    angle_idx, angle_t0, angle_k, angle_n, angle_keys = [], [], [], [], []
     for j in range(n):
         for a_pos, i in enumerate(nbrs[j]):
             for k in nbrs[j][a_pos + 1 :]:
@@ -159,8 +159,14 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
                     missing.append(f"angle {key}")
                     entry = (109.5, 0.0)
                 angle_idx.append((i, j, k))
-                angle_t0.append(math.radians(entry[0]))
-                angle_k.append(entry[1])
+                if entry[0] == "periodic":  # ["periodic", n, k]
+                    angle_t0.append(0.0)
+                    angle_n.append(int(entry[1]))
+                    angle_k.append(entry[2])
+                else:
+                    angle_t0.append(math.radians(entry[0]))
+                    angle_n.append(0)
+                    angle_k.append(entry[1])
                 angle_keys.append(key)
 
     tors_idx, tors_v, tors_n, tors_g, tors_imp, torsion_keys = [], [], [], [], [], []
@@ -263,6 +269,7 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
         angle_idx=arr(angle_idx, (-1, 3), int),
         angle_t0=arr(angle_t0),
         angle_k=arr(angle_k),
+        angle_n=arr(angle_n, None, int),
         tors_idx=arr(tors_idx, (-1, 4), int),
         tors_v=arr(tors_v),
         tors_n=arr(tors_n),

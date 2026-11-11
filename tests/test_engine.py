@@ -201,3 +201,49 @@ def test_keys_are_canonical():
     assert torsion_key("h", "c3", "c2", "c2", "-") == torsion_key(
         "c2", "c2", "c3", "h", "-"
     )
+
+
+# --- metals -----------------------------------------------------------------
+
+
+def test_periodic_angle_has_minima_at_90_and_180_and_exact_gradient():
+    from pmeff26_plugin.core import System
+
+    system = System(
+        masses=np.ones(3),
+        angle_idx=np.array([[0, 1, 2]]),
+        angle_t0=np.zeros(1),
+        angle_k=np.array([80.0]),
+        angle_n=np.array([4]),
+    )
+
+    def energy(deg):
+        t = np.radians(deg)
+        x = np.array([[2.0, 0, 0], [0, 0, 0], [2.0 * np.cos(t), 2.0 * np.sin(t), 0]])
+        return energy_and_gradient(x, system)[0], x
+
+    assert energy(90.0)[0] == pytest.approx(0.0, abs=1e-9)
+    assert energy(180.0)[0] == pytest.approx(0.0, abs=1e-9)
+    assert energy(135.0)[0] == pytest.approx(80.0 / 16 * 2)
+    x = energy(117.0)[1] + 0.01
+    _, g = energy_and_gradient(x, system)
+    assert np.allclose(g, _numeric_gradient(x, system), atol=1e-6)
+
+
+def test_shipped_types_cover_the_metal_set():
+    from rdkit import Chem
+
+    from pmeff26_plugin.assign import atom_types
+
+    shipped = default_parameters()
+    for smiles, expected in (
+        ("Cl[Zn]Cl", "zn2"),
+        ("Cl[Ti](Cl)(Cl)Cl", "ti4"),
+        ("[NH3]->[Pt](Cl)(Cl)<-[NH3]", "pt4"),
+        ("O=C=[Ni](=C=O)(=C=O)=C=O", "ni4"),
+    ):
+        mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
+        assert expected in atom_types(mol, shipped), smiles
+    iron = Chem.MolFromSmiles("Cl[Fe]Cl")
+    with pytest.raises(UnsupportedAtomError):
+        atom_types(iron, shipped)
