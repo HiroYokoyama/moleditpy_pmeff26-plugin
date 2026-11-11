@@ -1,0 +1,491 @@
+{
+ "name": "PMEFF26",
+ "version": "0.0.0-unfitted",
+ "units": "kcal/mol, Angstrom, degree, e; bond/angle k in E = 1/2 k x^2",
+ "reference": "not fitted yet",
+ "vdw_source": "UFF per-element Lennard-Jones (Rappe et al. 1992), not refit",
+ "scale14": {
+  "vdw": 0.5,
+  "elec": 0.8333
+ },
+ "atom_types": [
+  {
+   "type": "h",
+   "smarts": "[#1]",
+   "element": "H"
+  },
+  {
+   "type": "b2",
+   "smarts": "[#5X3]",
+   "element": "B",
+   "planar": true,
+   "pi_electrons": 0,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "b4",
+   "smarts": "[#5X4]",
+   "element": "B"
+  },
+  {
+   "type": "c3",
+   "smarts": "[#6X4]",
+   "element": "C"
+  },
+  {
+   "type": "c3r4",
+   "smarts": "[#6X4;r4]",
+   "element": "C"
+  },
+  {
+   "type": "c3r3",
+   "smarts": "[#6X4;r3]",
+   "element": "C"
+  },
+  {
+   "type": "c2",
+   "smarts": "[#6X3]",
+   "element": "C",
+   "planar": true,
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "c2r4",
+   "smarts": "[#6X3;r4]",
+   "element": "C",
+   "planar": true,
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "c2r3",
+   "smarts": "[#6X3;r3]",
+   "element": "C",
+   "planar": true,
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "ca",
+   "smarts": "[c]",
+   "element": "C",
+   "planar": true,
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "c1",
+   "smarts": "[#6X2]",
+   "element": "C",
+   "linear": true
+  },
+  {
+   "type": "c0",
+   "smarts": "[#6X1]",
+   "element": "C",
+   "linear": true
+  },
+  {
+   "type": "n3",
+   "smarts": "[#7X3]",
+   "element": "N"
+  },
+  {
+   "type": "n3r3",
+   "smarts": "[#7X3;r3]",
+   "element": "N"
+  },
+  {
+   "type": "nh",
+   "smarts": "[#7X3;!r3]-[#6X3,c,#6X2,#7X2,#5X3]",
+   "element": "N",
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "nam",
+   "smarts": "[#7X3;!r3]-[#6X3,#16X4,#15X4]=[#8,#16,#7]",
+   "element": "N",
+   "planar": true,
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "nb",
+   "smarts": "[nX3]",
+   "element": "N",
+   "planar": true,
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "no",
+   "smarts": "[#7X3+]",
+   "element": "N",
+   "planar": true,
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "n4",
+   "smarts": "[#7X4]",
+   "element": "N"
+  },
+  {
+   "type": "n2",
+   "smarts": "[#7X2]",
+   "element": "N",
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "na",
+   "smarts": "[nX2]",
+   "element": "N",
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "n1",
+   "smarts": "[#7X1]",
+   "element": "N",
+   "linear": true
+  },
+  {
+   "type": "n1c",
+   "smarts": "[#7X2+,#7X2-]",
+   "element": "N",
+   "linear": true
+  },
+  {
+   "type": "n1c",
+   "smarts": "[#7X2](=*)=*",
+   "element": "N",
+   "linear": true
+  },
+  {
+   "type": "ow",
+   "smarts": "[#8X2H2]",
+   "element": "O"
+  },
+  {
+   "type": "oh",
+   "smarts": "[#8X2H1]",
+   "element": "O"
+  },
+  {
+   "type": "os",
+   "smarts": "[#8X2H0]",
+   "element": "O"
+  },
+  {
+   "type": "osr3",
+   "smarts": "[#8X2;r3]",
+   "element": "O"
+  },
+  {
+   "type": "oa",
+   "smarts": "[o]",
+   "element": "O",
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "o",
+   "smarts": "[#8X1]",
+   "element": "O",
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "f",
+   "smarts": "[#9]",
+   "element": "F"
+  },
+  {
+   "type": "si",
+   "smarts": "[#14X4]",
+   "element": "Si"
+  },
+  {
+   "type": "p3",
+   "smarts": "[#15X3]",
+   "element": "P"
+  },
+  {
+   "type": "p4",
+   "smarts": "[#15X4]",
+   "element": "P"
+  },
+  {
+   "type": "p5",
+   "smarts": "[#15X5]",
+   "element": "P"
+  },
+  {
+   "type": "p2",
+   "smarts": "[#15X2]",
+   "element": "P"
+  },
+  {
+   "type": "p1",
+   "smarts": "[#15X1]",
+   "element": "P",
+   "linear": true
+  },
+  {
+   "type": "s2",
+   "smarts": "[#16X2]",
+   "element": "S"
+  },
+  {
+   "type": "s2r3",
+   "smarts": "[#16X2;r3]",
+   "element": "S"
+  },
+  {
+   "type": "sa",
+   "smarts": "[s]",
+   "element": "S",
+   "pi_electrons": 2,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "s1",
+   "smarts": "[#16X1]",
+   "element": "S",
+   "pi_electrons": 1,
+   "pi_alpha": 0.0
+  },
+  {
+   "type": "s3",
+   "smarts": "[#16X3]",
+   "element": "S"
+  },
+  {
+   "type": "s4",
+   "smarts": "[#16X4]",
+   "element": "S"
+  },
+  {
+   "type": "s6",
+   "smarts": "[#16X6]",
+   "element": "S"
+  },
+  {
+   "type": "cl",
+   "smarts": "[#17]",
+   "element": "Cl"
+  },
+  {
+   "type": "br",
+   "smarts": "[#35]",
+   "element": "Br"
+  },
+  {
+   "type": "i",
+   "smarts": "[#53]",
+   "element": "I"
+  }
+ ],
+ "vdw": {
+  "h": [
+   1.443,
+   0.044
+  ],
+  "b2": [
+   2.0415,
+   0.18
+  ],
+  "b4": [
+   2.0415,
+   0.18
+  ],
+  "c3": [
+   1.9255,
+   0.105
+  ],
+  "c3r4": [
+   1.9255,
+   0.105
+  ],
+  "c3r3": [
+   1.9255,
+   0.105
+  ],
+  "c2": [
+   1.9255,
+   0.105
+  ],
+  "c2r4": [
+   1.9255,
+   0.105
+  ],
+  "c2r3": [
+   1.9255,
+   0.105
+  ],
+  "ca": [
+   1.9255,
+   0.105
+  ],
+  "c1": [
+   1.9255,
+   0.105
+  ],
+  "c0": [
+   1.9255,
+   0.105
+  ],
+  "n3": [
+   1.83,
+   0.069
+  ],
+  "n3r3": [
+   1.83,
+   0.069
+  ],
+  "nh": [
+   1.83,
+   0.069
+  ],
+  "nam": [
+   1.83,
+   0.069
+  ],
+  "nb": [
+   1.83,
+   0.069
+  ],
+  "no": [
+   1.83,
+   0.069
+  ],
+  "n4": [
+   1.83,
+   0.069
+  ],
+  "n2": [
+   1.83,
+   0.069
+  ],
+  "na": [
+   1.83,
+   0.069
+  ],
+  "n1": [
+   1.83,
+   0.069
+  ],
+  "n1c": [
+   1.83,
+   0.069
+  ],
+  "ow": [
+   1.75,
+   0.06
+  ],
+  "oh": [
+   1.75,
+   0.06
+  ],
+  "os": [
+   1.75,
+   0.06
+  ],
+  "osr3": [
+   1.75,
+   0.06
+  ],
+  "oa": [
+   1.75,
+   0.06
+  ],
+  "o": [
+   1.75,
+   0.06
+  ],
+  "f": [
+   1.682,
+   0.05
+  ],
+  "si": [
+   2.1475,
+   0.402
+  ],
+  "p3": [
+   2.0735,
+   0.305
+  ],
+  "p4": [
+   2.0735,
+   0.305
+  ],
+  "p5": [
+   2.0735,
+   0.305
+  ],
+  "p2": [
+   2.0735,
+   0.305
+  ],
+  "p1": [
+   2.0735,
+   0.305
+  ],
+  "s2": [
+   2.0175,
+   0.274
+  ],
+  "s2r3": [
+   2.0175,
+   0.274
+  ],
+  "sa": [
+   2.0175,
+   0.274
+  ],
+  "s1": [
+   2.0175,
+   0.274
+  ],
+  "s3": [
+   2.0175,
+   0.274
+  ],
+  "s4": [
+   2.0175,
+   0.274
+  ],
+  "s6": [
+   2.0175,
+   0.274
+  ],
+  "cl": [
+   1.9735,
+   0.227
+  ],
+  "br": [
+   2.0945,
+   0.251
+  ],
+  "i": [
+   2.25,
+   0.339
+  ]
+ },
+ "pi": {
+  "enabled": false,
+  "bonds": {}
+ },
+ "increments": {
+  "types": {},
+  "bonds": {}
+ },
+ "bci": {},
+ "bonds": {},
+ "angles": {},
+ "torsions": {},
+ "impropers": {}
+}

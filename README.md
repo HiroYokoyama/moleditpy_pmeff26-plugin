@@ -2,257 +2,76 @@
 
 [![Tests](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/actions/workflows/test.yml)
 
-Repo: [https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/)
+A [MoleditPy](https://github.com/HiroYokoyama/python_molecular_editor) plugin
+providing **PMEFF26**, a DFT-fitted molecular force field that runs entirely in
+Python (NumPy + RDKit).
 
-> **Status: 0.1.0 development baseline.** PMEFF26 starts as a fork of the
-> [PMEFF](https://github.com/HiroYokoyama/moleditpy_pmeff-plugin) 2.0.0 engine
-> and currently has the same physics and the same accuracy. The goal of the
-> project is a pure-Python (NumPy) method with much better geometries and
-> energies at force-field speed; until that engine lands and is validated
-> against reference calculations, everything below describes the inherited
-> PMEFF behaviour. PMEFF26 installs alongside PMEFF: it has its own menu
-> entries, settings file and project-file state.
+> **Status: engine complete, parameters not fitted yet.** The reference
+> wB97X-D/def2-TZVP calculations are still running. Until
+> `pmeff26_plugin/parameters/pmeff26.json` is filled by the fit, PMEFF26
+> refuses every molecule. No accuracy figures exist yet; they will come from
+> the held-out validation set and be reported here.
 
-A [MoleditPy](https://github.com/HiroYokoyama/python_molecular_editor) plugin that
-adds **PMEFF26**, a self-contained *universal* molecular force field covering the
-**entire periodic table** (Z = 1 – 118). It needs no external QM binary — just
-`numpy` and `rdkit`.
+## What PMEFF26 is
 
-## Why another force field?
+- **A typed force field.** Atoms are typed by an ordered SMARTS list; bonds,
+  angles, torsions, out-of-plane terms, Lennard-Jones and bond-charge-increment
+  electrostatics are looked up by type. Energies are in kcal/mol, frequencies
+  in cm⁻¹.
+- **All parameters in an external file.** `parameters/pmeff26.json` holds the
+  atom types and every table. The code contains no chemical constants.
+- **No fallback.** A molecule that needs a term the file does not contain is
+  refused with a list of what is missing. PMEFF26 never substitutes a generic
+  estimate, because an energy built on a guessed parameter is not accurate.
+- **A variational π-electron term.** Conjugated atoms carry a small
+  Hückel-type Hamiltonian whose resonance integrals depend on bond length and
+  twist; its energy, with exact analytic gradients, is part of the force
+  field. Bond-length alternation, aromatic stabilization and rotation barriers
+  about conjugated bonds come from that one term, so all π bonds between two
+  atom types share a single σ parameter instead of one per bond order.
+- **DFT-referenced energies.** Fitted per-type increments turn the strain
+  energy into an estimate of the DFT total energy, so isomers can be compared.
 
-The classic force fields shipped with molecular editors are excellent for
-organic chemistry but leave gaps: MMFF94 only parameterizes a fixed subset of
-main-group elements, and even UFF-style tables are hand-tuned per element.
+Scope of the first parameter set: neutral, closed-shell molecules of H, B, C,
+N, O, F, Si, P, S, Cl, Br and I. Metals, ions and radicals are refused.
 
-PMEFF26 takes a different approach. Every parameter is **derived from a single
-per-element property** — the Pyykkö single-bond covalent radius — so *no element
-is ever missing a parameter*. Drop in a lanthanide, an actinide, a transition
-metal, or a superheavy element and PMEFF26 still produces a sensible geometry.
+## What it adds to MoleditPy
 
-## What it does
-
-Once installed, PMEFF26 registers:
-
-| Feature | Where | Description |
-|---|---|---|
-| **PMEFF26** | Right-click the *Optimize 3D* button | Relaxes the current 3D geometry with a dependency-free FIRE 2.0 + L-BFGS optimizer. |
-| **PMEFF26 Single-Point Energy** | *Analysis* menu | Reports the force-field energy (with per-term decomposition) without modifying the geometry. |
-| **PMEFF26 Minimum Check (Vibrational)** | *Analysis* menu | Diagonalizes the Hessian at the current geometry and reports whether it is a true minimum or a saddle point. |
-| **Metal Geometry Override…** | *3D Edit* menu (also a button in *PMEFF26 Settings*) | Opens a modeless table to force the coordination geometry of individual atoms (see below). |
-| **PMEFF26 Settings…** | *Settings → PMEFF26 Setting* menu | Opens a dialog to toggle individual physics options (persisted to `settings.json`). |
-
-> **Scope:** PMEFF26 is a pre-DFT *geometry-cleanup* force field. Its goal is
-> **initial structure preparation** — removing clashes, correcting bond lengths,
-> angles and torsions, and placing metal centers in the right coordination
-> geometry. It is not designed for high-accuracy thermochemistry. For accurate
-> energies, pair it with the ORCA or PySCF plugins.
->
-> **Accuracy:** PMEFF26 is only for initial structure preparation before DFT.
-> Its optimized geometries, energies and vibrational modes are approximate,
-> not quantitatively accurate substitutes for DFT results. Convergence and
-> the absence of imaginary PMEFF26 modes do not establish DFT-level accuracy.
-> The minimum checker diagnoses curvature of the approximate PMEFF26 surface.
-> Its unit-mass mode values are not physical wavenumbers in cm⁻¹ and must
-> not be used as an accurate IR or Raman spectrum.
-
-### Calculation and result dialogs
-
-Optimization, single-point energy and vibrational checks run in a background
-thread when used in MoleditPy. A **Calculating…** dialog keeps the interface
-repainting and offers **Cancel**. Optimization shows the phase, iteration,
-energy and largest force; the minimum checker shows Hessian progress.
-Calculation uses a copy of the molecule; cancellation preserves the original
-geometry. The progress dialog temporarily blocks editing to keep the document
-consistent with the submitted structure.
-
-The result dialog shows a compact outcome and accuracy note. **Details…** opens
-the full data in a resizable window, where it can be copied as a table. An optimization
-that exhausts its budget is labelled **Not converged**: choose whether to apply
-that geometry or keep the original. The minimum checker lists every mode,
-the imaginary and near-zero counts, the classification threshold and the
-residual maximum force. Values are unit-mass internal modes, **not cm⁻¹**.
-No imaginary modes alone does not confirm a minimum when residual forces remain.
-
-The iteration budget is configurable under **PMEFF26 Settings → Maximum
-optimization steps** (default 1,000). Difficult structures may require more
-steps; this changes the optimization budget without changing force-field parameters.
-
-The engine functions in `pmeff26_plugin/forcefield.py` (`optimize`,
-`optimize_rdkit_mol`) accept `progress_callback` and `cancel_callback` too,
-without depending on Qt.
-The progress callback receives an `OptimizationProgress` snapshot. A cancellation
-callback returning `True` raises `OptimizationCancelled` and preserves
-the input coordinates.
-
-## The physics
-
-For the full specification — functional forms, parameter derivations,
-gradient formulas, non-bonded bookkeeping and the optimizer — see the
-[technical reference](docs/TECHNICAL.md). In brief, PMEFF26 has these energy terms:
-
-- **Bonds** — by default **Morse potential** `D(1 − e^{−α Δr})²` (bounded above
-  at the dissociation energy D; same curvature as harmonic at the minimum). The
-  harmonic `½·k·(r − r₀)²` is available as a fallback. Rest lengths and force
-  constants follow the same covalent-radius rules in both cases, with a
-  **polar-bond contraction** (a capped, quadratic function of the
-  electronegativity difference) that pulls in bonds the plain radius sum leaves
-  too long — Si–O 1.79→1.63 Å, P=O, B–O, the metal-oxides and C–F — while
-  leaving organic C–C/C–O/C–N/C–H unchanged. Toggleable in settings.
-- **Angles** — harmonic in the bend angle, `½·k·(θ − θ₀)²`, with the ideal angle
-  `θ₀` inferred from the central atom's hybridization (falling back to its
-  coordination number for metals and other cases where hybridization is
-  ambiguous). sp³ pnictogens and chalcogens are compressed below tetrahedral
-  by their lone pairs (`4 − coordination` of them): mildly for period-2 atoms
-  (NH₃ ≈ 107°, H₂O ≈ 104.5°), strongly for heavier congeners that bond through
-  near-pure p orbitals (H₂S/PH₃ ≈ 93°). The period-2 compression is calibrated
-  on hydrides and opens back toward tetrahedral for bulkier substituents
-  (dimethyl ether's C-O-C ≈ 110°, not 104.5°). Two more special cases: in-ring angles
-  of three-membered rings take their target from the law of cosines over the
-  bond rest lengths (60° in cyclopropane), so bonds and angles share one
-  minimum; and linear sp centers use `k·(1 + cos θ)`, which matches the
-  harmonic curvature at 180° but keeps the gradient finite at the linear
-  minimum.
-- **Torsions** — a cosine dihedral potential `½·V·(1 + cos(n·φ − γ))`: 2-fold
-  for sp²–sp² bonds (keeps double bonds and conjugated systems planar), 3-fold
-  for sp³–sp³ bonds (staggered minima), and a weak 6-fold term for mixed
-  sp²–sp³ bonds. The per-bond barrier is split evenly over all dihedrals
-  sharing the bond, UFF-style, so it doesn't grow with substitution, and the
-  2-fold barrier scales with the π character of the central bond — full for a
-  double bond, reduced for aromatic, weak for a conjugated single bond, so
-  biphenyl can twist while ethylene stays rigid.
-- **Out-of-plane** — a harmonic penalty on the pyramidalization of
-  3-coordinate sp² centers, expressed through the sum of the three bend angles
-  around the center (planar ⇔ 360°).
-- **van der Waals** — a Lennard-Jones 12-6 term whose per-atom radius is the
-  covalent radius plus a fixed 0.90 Å offset. This reproduces the tabulated vdW
-  radii of the common elements to within ~0.05 Å (C → 1.65 Å vs. 1.70 Å,
-  O → 1.53 Å vs. 1.52 Å, H → 1.22 Å vs. 1.20 Å). Well depths are derived per
-  atom from the covalent radius as a polarizability proxy (carbon anchors the
-  scale) and combined with the Lorentz–Berthelot geometric mean. 1-2 and 1-3
-  pairs are excluded; 1-4 pairs get the conventional half well depth.
-
-### Optional physics terms
-
-**Settings → PMEFF26 Setting** opens a dialog. All settings are persisted in
-`pmeff26_plugin/settings.json`. The optional terms (defaults shown) are:
-
-- **Electronic effects** *(on)* — QEq partial charges from Slater Zeff and
-  Allred–Rochow electronegativities feed a shielded Coulomb term; charges are
-  re-solved as the geometry relaxes. This is an approximate charge-relaxation
-  model; forces use the current fixed charges between refreshes. Before claiming
-  convergence the optimizer refreshes charges at the final coordinates and,
-  if necessary, uses the remaining iteration budget to reduce residual forces.
-  Also enables square-planar angle targets for 4-coordinate Ni/Pd/Pt/Rh/Ir/Au
-  and octahedral targets for 6-coordinate d-block transition metals; cis/trans
-  assignment is read from the starting geometry so tetrahedral Pd²⁺ converges
-  to square-planar.
-- **Morse bond stretching** *(on)* — replaces harmonic bonds with the Morse
-  potential `D(1−e^{−α Δr})²`; bounded above at D, same curvature at the
-  minimum. Improves robustness for severely distorted starting geometries at
-  negligible computational cost.
-- **Hydrogen bond correction** *(on)* — a geometry-dependent D−H···A term
-  (donors/acceptors: N, O, F, S) with a 12-6 radial profile and cos²(∠DHA)
-  angular dependence. Improves H-bond distances and linearity. Fast.
-- **Dispersion correction** *(off by default)* — Becke-Johnson damped C₆/r⁶
-  London dispersion added on top of the LJ term. Improves aromatic stacking
-  distances and hydrophobic contacts. Can slow optimization of large molecules.
-
-Lone pairs are not explicit particles, but their steric effect enters through
-the hybridization-derived angle targets: sp³ N stays pyramidal, sp³ O stays
-bent, and a conjugated (sp²) amide nitrogen stays planar.
-
-### Per-atom geometry override
-
-Connectivity alone cannot always determine a coordination geometry — a
-4-coordinate metal may be square-planar *or* tetrahedral, and a bare metal
-centre may have no reliable hybridization at all. **3D Edit → PMEFF26 Metal Geometry
-Override** (also a button in *PMEFF26 Settings*) opens a modeless table where you
-can force the geometry of individual atoms:
-
-| Override | Ideal L–M–L angles |
+| Feature | Where |
 |---|---|
-| **Auto** *(default)* | Hybridization / auto-metal detection (unchanged) |
-| **Linear** | 180° |
-| **Trigonal Planar** | 120°, kept planar |
-| **Square Planar** | cis 90° / trans 180° |
-| **Tetrahedral** | 109.47° |
-| **Trigonal Bipyramidal** | axial–axial 180°, axial–equatorial 90°, equatorial–equatorial 120° |
-| **Square Pyramidal** | cis 90° / trans 180° (2 trans pairs) |
-| **Octahedral** | cis 90° / trans 180° |
+| **PMEFF26** geometry optimization | Right-click the *Optimize 3D* button |
+| **PMEFF26 Single-Point Energy** (per-term table, estimated DFT energy) | *Analysis* menu |
+| **PMEFF26 Vibrational Analysis** (cm⁻¹, minimum/saddle verdict) | *Analysis* menu |
+| **PMEFF26 Settings…** (optimization step budget) | *Settings* menu |
 
-The table lists the current molecule's atoms (an **Atom ID** column identifies
-each) with a *Show metals only* filter (on by default — uncheck it to override
-carbon or any other element). Each atom's drop-down only enables geometries that
-fit its neighbor count (e.g. *Linear* is disabled on a 3-coordinate center).
-Rows are colour-coded: **blue** = an unsaved change, **green** = an applied
-override, white = none. Click an atom in the 3D view to jump to its row;
-selected rows are highlighted in 3D.
+Calculations run in a background thread with a cancel button; cancelling
+keeps the original geometry.
 
-Overrides are **entirely opt-in**: an atom left on *Auto* behaves exactly as
-before, so the shipped defaults (including the d8 square-planar / octahedral
-auto-detection) are unchanged. They are also **independent of the electronic-
-effects setting** — a forced geometry applies whether or not electronic effects
-are on. **Apply** stores the overrides without moving atoms (then run *Optimize
-3D (PMEFF26)* when you like); **Apply and Optimize** stores them and relaxes the
-molecule immediately. Only *applied* overrides are kept — they are saved with
-the project and restored when the window (or project) is reopened; an unsaved
-(blue) change is discarded if you close the window without applying it.
+## Known limitations
 
-Geometry optimization uses **FIRE 2.0** (Fast Inertial Relaxation Engine) for
-the far-from-minimum regime and hands over to an **L-BFGS finisher** in the
-quadratic basin, with a per-atom displacement clamp for stability and fully
-**analytical gradients** for all energy terms — including the dihedral and
-Coulomb derivatives, which are verified against numeric differentiation in
-the test suite. All terms are evaluated with vectorized numpy over
-precompiled index arrays, so evaluation cost is dominated by numpy kernels
-rather than Python loops. The short-range van der Waals term is truncated at
-a 12 Å cutoff (electrostatics, being long-range, are not) with the pair list
-built by an O(N) cell-list search and maintained as a Verlet list during
-optimization; a CHARMM-style switching function tapers the LJ term to zero
-over the last 2 Å with zero slope at the cutoff, so both energy and force
-stay continuous as a pair crosses the boundary. A finite-difference Hessian
-over the analytic gradient powers the vibrational minimum check.
+- The Lennard-Jones parameters are the per-element UFF values and are not
+  refit: the reference set contains no intermolecular data.
+- Charges are fixed bond-charge increments; there is no polarization.
+- The reference functional is ωB97X-D (GAMESS has no ωB97X-D3(BJ)).
 
-> **Note:** PMEFF26 energies are in internal, consistent units meant for
-> **relative comparison and geometry guidance**, not thermochemistry. The goal is
-> to give the DFT optimizer a sensible starting geometry — not to replace it.
+## Fitting
 
-## Installation
-
-Copy the `pmeff26_plugin/` folder into your MoleditPy user plugin
-directory:
-
-- **Windows:** `C:\Users\<YourName>\.moleditpy\plugins\`
-- **Linux / macOS:** `~/.moleditpy/plugins/`
-
-Then restart MoleditPy, or use **Plugins → Reload All Plugins**.
+`fitting/` holds the reference pipeline: the molecule sets (`dataset.py`),
+the GAMESS input writer, the remote driver, and `run_all.py`, which builds and
+submits everything as one Job Manager job. See the docstring of each module.
 
 ## Development
 
 ```bash
-# Run the test suite (uses real numpy + rdkit)
-python -m pytest tests/ -v
+python -m pytest tests/ -q -n auto
+```
 
-# With coverage
-python -m pytest tests/ --cov=pmeff26_plugin --cov-report=term-missing
-
-# Lint
+```bash
 pylint pmeff26_plugin/
 ```
 
-The engine (`pmeff26_plugin/forcefield.py`) is deliberately Qt-free and
-RDKit-free at its core — it operates on a plain-number `Topology` — which makes
-it fully unit-testable without a GUI. Only the thin boundary functions touch
-RDKit.
+## Origin and license
 
-## Origin
-
-PMEFF26 is derived from PMEFF 2.0.0 (same author, LGPL-3.0-or-later).
-
-## License
-
-LGPL-3.0-or-later. See [LICENSE](LICENSE).
-
-## Licensing scope
-
-First-party code in this migration is LGPL-3.0-or-later. See [LICENSE](LICENSE), [COPYING](COPYING) and [dependency/provenance terms](LICENSING.md). Third-party components and historical releases retain their own terms.
+PMEFF26 started from PMEFF 2.0.0 (same author); the engine was rewritten.
+LGPL-3.0-or-later. See [LICENSE](LICENSE), [COPYING](COPYING) and
+[LICENSING.md](LICENSING.md).

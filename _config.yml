@@ -1,5 +1,5 @@
 title: PMEFF26
-description: A universal molecular force field for MoleditPy.
+description: A DFT-fitted force field for MoleditPy.
 baseurl: /moleditpy_pmeff26-plugin
 url: https://hiroyokoyama.github.io
 main_site_url: https://hiroyokoyama.github.io/python_molecular_editor
