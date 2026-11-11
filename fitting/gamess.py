@@ -1,0 +1,79 @@
+"""GAMESS (US) input writer for the PEFF26 reference calculations.
+
+Level: wB97X-D / def2-TZVP (def2 ECP on iodine), spherical harmonics, RHF,
+neutral singlets. The basis is written inline from ``def2_tzvp_gamess.json``
+(Basis Set Exchange data) because GAMESS's built-in Karlsruhe sets stop at Ar.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+_BASIS = json.loads(
+    (Path(__file__).with_name("def2_tzvp_gamess.json")).read_text(encoding="utf-8")
+)["elements"]
+
+LEVEL = "wB97X-D/def2-TZVP (GAMESS)"
+
+
+def gamess_input(
+    title: str,
+    symbols: list[str],
+    atomic_numbers: list[int],
+    coords: list[tuple[float, float, float]],
+    hessian: bool,
+    frozen_dihedral: tuple[int, int, int, int] | None = None,
+    frozen_value: float = 0.0,
+) -> str:
+    """Return a GAMESS optimization input (optionally + Hessian, or constrained)."""
+    use_ecp = any(_BASIS[s]["ecp"] for s in symbols)
+    n = len(symbols)
+    contrl = [
+        " $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE DFTTYP=wB97X-D ISPHER=1",
+        "  MAXIT=200 ICHARG=0 MULT=1",
+    ]
+    if frozen_dihedral is not None:
+        contrl.append(f"  NZVAR={3 * n - 6}")
+    if use_ecp:
+        contrl.append("  PP=READ")
+    contrl[-1] += " $END"
+    lines = contrl + [
+        " $SYSTEM MWORDS=300 $END",
+        " $SCF DIRSCF=.TRUE. NCONV=7 $END",
+        " $DFT NRAD=99 NLEB=590 $END",
+    ]
+    if frozen_dihedral is not None:
+        i, j, k, l = (x + 1 for x in frozen_dihedral)
+        lines += [
+            " $ZMAT DLC=.TRUE. AUTO=.TRUE.",
+            f"  IFZMAT(1)=3,{i},{j},{k},{l} FVALUE(1)={frozen_value:.4f} $END",
+            " $STATPT OPTTOL=1.0E-4 NSTEP=300 $END",
+        ]
+    elif hessian and n > 1:
+        lines += [
+            " $STATPT OPTTOL=1.0E-5 NSTEP=300 HSSEND=.TRUE. $END",
+            " $FORCE METHOD=SEMINUM NVIB=2 $END",
+        ]
+    else:
+        lines.append(" $STATPT OPTTOL=1.0E-5 NSTEP=300 $END")
+    lines += [" $DATA", title, "C1"]
+    for sym, z, (x, y, zc) in zip(symbols, atomic_numbers, coords):
+        lines.append(f"{sym:<2s} {float(z):5.1f} {x:16.10f} {y:16.10f} {zc:16.10f}")
+        lines.extend(_BASIS[sym]["basis"])
+        lines.append("")
+    lines.append(" $END")
+    if use_ecp:
+        lines.append(" $ECP")
+        seen: set[str] = set()
+        for sym in symbols:
+            ecp = _BASIS[sym]["ecp"]
+            if not ecp:
+                lines.append(f"{sym}-ECP NONE")
+            elif sym in seen:
+                lines.append(f"{sym}-ECP")
+            else:
+                seen.add(sym)
+                lines.extend(ecp)
+        lines.append(" $END")
+    return "\n".join(lines) + "\n"

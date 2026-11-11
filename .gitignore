@@ -220,3 +220,6 @@ __marimo__/
 # PEFF26 runtime options (user state, not source)
 peff26_plugin/settings.json
 .pytest-tmp/
+/reference/pack/
+/reference/smoke/
+/reference/raw/
