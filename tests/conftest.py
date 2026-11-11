@@ -1,6 +1,6 @@
-"""Shared test infrastructure for moleditpy_peff26-plugin.
+"""Shared test infrastructure for moleditpy_pmeff26-plugin.
 
-The PEFF26 engine (``peff26_plugin.forcefield``) uses real ``numpy`` and,
+The PMEFF26 engine (``pmeff26_plugin.forcefield``) uses real ``numpy`` and,
 at its boundary, real ``rdkit`` — both are required to exercise the actual
 math and are available in the test environment. Only the heavy *host* imports
 (PySide6, moleditpy) are mocked, and only for the plugin-entry (``__init__``)

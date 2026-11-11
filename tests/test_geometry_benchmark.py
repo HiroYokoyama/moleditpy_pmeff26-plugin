@@ -1,13 +1,13 @@
-"""Geometry-accuracy regression benchmark for the PEFF26 engine.
+"""Geometry-accuracy regression benchmark for the PMEFF26 engine.
 
 Unlike the unit tests, which pin individual hand-picked parameters, this
-module embeds real molecules with RDKit, relaxes them with the full PEFF26
+module embeds real molecules with RDKit, relaxes them with the full PMEFF26
 force field (all physics terms on, as the plugin ships), and checks the
 *optimized* geometry against reference bond lengths and angles. It is the
 guardrail that catches a parameter change silently regressing real geometries
 even when every targeted unit test stays green.
 
-Thresholds are deliberately loose (≈0.07 Å on bonds, ≈4.5° on angles): PEFF26
+Thresholds are deliberately loose (≈0.07 Å on bonds, ≈4.5° on angles): PMEFF26
 is a pre-DFT cleanup field, not a high-accuracy method, and carries a known
 systematic ~0.04 Å underestimate on C–C from the Pyykko radii. The point is to
 catch *gross* regressions (e.g. the 0.16 Å Si–O error the polar-bond
@@ -24,7 +24,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Geometry import Point3D
 
-from peff26_plugin import forcefield as ff
+from pmeff26_plugin import forcefield as ff
 
 # Full physics stack, matching the plugin's shipped defaults.
 _KW = dict(
@@ -69,7 +69,7 @@ _ANGLE_CASES = [
 
 
 def _optimized_positions(smiles: str) -> tuple:
-    """Embed *smiles*, relax it with full-physics PEFF26, return (mol, coords)."""
+    """Embed *smiles*, relax it with full-physics PMEFF26, return (mol, coords)."""
     mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
     assert AllChem.EmbedMolecule(mol, randomSeed=42) == 0, smiles
     success, result = ff.optimize_rdkit_mol(mol, max_iter=1000, **_KW)
@@ -198,7 +198,7 @@ def _flat_ring_start(smiles: str, n_ring: int):
 
 def test_strained_ring_bends_sp_centers():
     # Cyclooctyne: both C-C#C angles must come out clearly bent (expt ~155
-    # deg; PEFF26 lands near 159), and the ring must stay closed — a straight
+    # deg; PMEFF26 lands near 159), and the ring must stay closed — a straight
     # alkyne here means the sp bend term is too stiff.
     mol = _flat_ring_start("C1CCC#CCCC1", 8)
     success, result = ff.optimize_rdkit_mol(mol, max_iter=4000, **_KW)

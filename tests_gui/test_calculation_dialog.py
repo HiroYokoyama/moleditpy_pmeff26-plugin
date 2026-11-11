@@ -12,10 +12,10 @@ from PySide6.QtWidgets import QApplication, QPushButton, QTableWidget
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import peff26_plugin as plugin
-from peff26_plugin.calculation_dialog import CalculationDialog, run_job
-from peff26_plugin.forcefield import OptimizationCancelled
-from peff26_plugin.result_dialog import _open_dialogs, show_result
+import pmeff26_plugin as plugin
+from pmeff26_plugin.calculation_dialog import CalculationDialog, run_job
+from pmeff26_plugin.forcefield import OptimizationCancelled
+from pmeff26_plugin.result_dialog import _open_dialogs, show_result
 
 
 def test_job_runs_off_gui_thread_and_gui_keeps_ticking(qapp):
@@ -34,7 +34,7 @@ def test_job_runs_off_gui_thread_and_gui_keeps_ticking(qapp):
         return 42
 
     try:
-        assert run_job("PEFF26 Test", job) == 42
+        assert run_job("PMEFF26 Test", job) == 42
     finally:
         timer.stop()
     assert threads and threads[0] is not gui_thread
@@ -59,7 +59,7 @@ def test_closing_progress_cancels_without_destroying_running_thread(qapp):
 
     QTimer.singleShot(30, close_dialog)
     with pytest.raises(OptimizationCancelled):
-        run_job("PEFF26 Cancel Test", job)
+        run_job("PMEFF26 Cancel Test", job)
     assert stopped.is_set()
 
 
@@ -68,7 +68,7 @@ def test_worker_errors_reach_caller(qapp):
         raise ValueError("bad geometry")
 
     with pytest.raises(ValueError, match="bad geometry"):
-        run_job("PEFF26 Error Test", job)
+        run_job("PMEFF26 Error Test", job)
 
 
 def test_cancelled_plugin_optimization_preserves_live_molecule(qapp, monkeypatch):
@@ -87,7 +87,7 @@ def test_cancelled_plugin_optimization_preserves_live_molecule(qapp, monkeypatch
             Event().wait(0.005)
         return True, None
 
-    monkeypatch.setattr("peff26_plugin.forcefield.optimize_rdkit_mol", slow_engine)
+    monkeypatch.setattr("pmeff26_plugin.forcefield.optimize_rdkit_mol", slow_engine)
 
     def cancel():
         for widget in QApplication.topLevelWidgets():
@@ -101,7 +101,7 @@ def test_cancelled_plugin_optimization_preserves_live_molecule(qapp, monkeypatch
 
 def test_result_table_can_be_copied(qapp):
     show_result(
-        "PEFF26 Results",
+        "PMEFF26 Results",
         "Imaginary modes: 1",
         ["Mode", "Value"],
         [["1", "-2.0"]],

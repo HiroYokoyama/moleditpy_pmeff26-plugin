@@ -1,4 +1,4 @@
-"""Readable, copyable PEFF26 results; no widgets are created by the engine."""
+"""Readable, copyable PMEFF26 results; no widgets are created by the engine."""
 
 from __future__ import annotations
 

@@ -1,20 +1,20 @@
-# PEFF26
+# PMEFF26
 
-[![Tests](https://github.com/HiroYokoyama/moleditpy_peff26-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_peff26-plugin/actions/workflows/test.yml)
+[![Tests](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/actions/workflows/test.yml/badge.svg)](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/actions/workflows/test.yml)
 
-Repo: [https://github.com/HiroYokoyama/moleditpy_peff26-plugin/](https://github.com/HiroYokoyama/moleditpy_peff26-plugin/)
+Repo: [https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/](https://github.com/HiroYokoyama/moleditpy_pmeff26-plugin/)
 
-> **Status: 0.1.0 development baseline.** PEFF26 starts as a fork of the
+> **Status: 0.1.0 development baseline.** PMEFF26 starts as a fork of the
 > [PMEFF](https://github.com/HiroYokoyama/moleditpy_pmeff-plugin) 2.0.0 engine
 > and currently has the same physics and the same accuracy. The goal of the
 > project is a pure-Python (NumPy) method with much better geometries and
 > energies at force-field speed; until that engine lands and is validated
 > against reference calculations, everything below describes the inherited
-> PMEFF behaviour. PEFF26 installs alongside PMEFF: it has its own menu
+> PMEFF behaviour. PMEFF26 installs alongside PMEFF: it has its own menu
 > entries, settings file and project-file state.
 
 A [MoleditPy](https://github.com/HiroYokoyama/python_molecular_editor) plugin that
-adds **PEFF26**, a self-contained *universal* molecular force field covering the
+adds **PMEFF26**, a self-contained *universal* molecular force field covering the
 **entire periodic table** (Z = 1 – 118). It needs no external QM binary — just
 `numpy` and `rdkit`.
 
@@ -24,34 +24,34 @@ The classic force fields shipped with molecular editors are excellent for
 organic chemistry but leave gaps: MMFF94 only parameterizes a fixed subset of
 main-group elements, and even UFF-style tables are hand-tuned per element.
 
-PEFF26 takes a different approach. Every parameter is **derived from a single
+PMEFF26 takes a different approach. Every parameter is **derived from a single
 per-element property** — the Pyykkö single-bond covalent radius — so *no element
 is ever missing a parameter*. Drop in a lanthanide, an actinide, a transition
-metal, or a superheavy element and PEFF26 still produces a sensible geometry.
+metal, or a superheavy element and PMEFF26 still produces a sensible geometry.
 
 ## What it does
 
-Once installed, PEFF26 registers:
+Once installed, PMEFF26 registers:
 
 | Feature | Where | Description |
 |---|---|---|
-| **PEFF26** | Right-click the *Optimize 3D* button | Relaxes the current 3D geometry with a dependency-free FIRE 2.0 + L-BFGS optimizer. |
-| **PEFF26 Single-Point Energy** | *Analysis* menu | Reports the force-field energy (with per-term decomposition) without modifying the geometry. |
-| **PEFF26 Minimum Check (Vibrational)** | *Analysis* menu | Diagonalizes the Hessian at the current geometry and reports whether it is a true minimum or a saddle point. |
-| **Metal Geometry Override…** | *3D Edit* menu (also a button in *PEFF26 Settings*) | Opens a modeless table to force the coordination geometry of individual atoms (see below). |
-| **PEFF26 Settings…** | *Settings → PEFF26 Setting* menu | Opens a dialog to toggle individual physics options (persisted to `settings.json`). |
+| **PMEFF26** | Right-click the *Optimize 3D* button | Relaxes the current 3D geometry with a dependency-free FIRE 2.0 + L-BFGS optimizer. |
+| **PMEFF26 Single-Point Energy** | *Analysis* menu | Reports the force-field energy (with per-term decomposition) without modifying the geometry. |
+| **PMEFF26 Minimum Check (Vibrational)** | *Analysis* menu | Diagonalizes the Hessian at the current geometry and reports whether it is a true minimum or a saddle point. |
+| **Metal Geometry Override…** | *3D Edit* menu (also a button in *PMEFF26 Settings*) | Opens a modeless table to force the coordination geometry of individual atoms (see below). |
+| **PMEFF26 Settings…** | *Settings → PMEFF26 Setting* menu | Opens a dialog to toggle individual physics options (persisted to `settings.json`). |
 
-> **Scope:** PEFF26 is a pre-DFT *geometry-cleanup* force field. Its goal is
+> **Scope:** PMEFF26 is a pre-DFT *geometry-cleanup* force field. Its goal is
 > **initial structure preparation** — removing clashes, correcting bond lengths,
 > angles and torsions, and placing metal centers in the right coordination
 > geometry. It is not designed for high-accuracy thermochemistry. For accurate
 > energies, pair it with the ORCA or PySCF plugins.
 >
-> **Accuracy:** PEFF26 is only for initial structure preparation before DFT.
+> **Accuracy:** PMEFF26 is only for initial structure preparation before DFT.
 > Its optimized geometries, energies and vibrational modes are approximate,
 > not quantitatively accurate substitutes for DFT results. Convergence and
-> the absence of imaginary PEFF26 modes do not establish DFT-level accuracy.
-> The minimum checker diagnoses curvature of the approximate PEFF26 surface.
+> the absence of imaginary PMEFF26 modes do not establish DFT-level accuracy.
+> The minimum checker diagnoses curvature of the approximate PMEFF26 surface.
 > Its unit-mass mode values are not physical wavenumbers in cm⁻¹ and must
 > not be used as an accurate IR or Raman spectrum.
 
@@ -73,11 +73,11 @@ the imaginary and near-zero counts, the classification threshold and the
 residual maximum force. Values are unit-mass internal modes, **not cm⁻¹**.
 No imaginary modes alone does not confirm a minimum when residual forces remain.
 
-The iteration budget is configurable under **PEFF26 Settings → Maximum
+The iteration budget is configurable under **PMEFF26 Settings → Maximum
 optimization steps** (default 1,000). Difficult structures may require more
 steps; this changes the optimization budget without changing force-field parameters.
 
-The engine functions in `peff26_plugin/forcefield.py` (`optimize`,
+The engine functions in `pmeff26_plugin/forcefield.py` (`optimize`,
 `optimize_rdkit_mol`) accept `progress_callback` and `cancel_callback` too,
 without depending on Qt.
 The progress callback receives an `OptimizationProgress` snapshot. A cancellation
@@ -88,7 +88,7 @@ the input coordinates.
 
 For the full specification — functional forms, parameter derivations,
 gradient formulas, non-bonded bookkeeping and the optimizer — see the
-[technical reference](docs/TECHNICAL.md). In brief, PEFF26 has these energy terms:
+[technical reference](docs/TECHNICAL.md). In brief, PMEFF26 has these energy terms:
 
 - **Bonds** — by default **Morse potential** `D(1 − e^{−α Δr})²` (bounded above
   at the dissociation energy D; same curvature as harmonic at the minimum). The
@@ -133,8 +133,8 @@ gradient formulas, non-bonded bookkeeping and the optimizer — see the
 
 ### Optional physics terms
 
-**Settings → PEFF26 Setting** opens a dialog. All settings are persisted in
-`peff26_plugin/settings.json`. The optional terms (defaults shown) are:
+**Settings → PMEFF26 Setting** opens a dialog. All settings are persisted in
+`pmeff26_plugin/settings.json`. The optional terms (defaults shown) are:
 
 - **Electronic effects** *(on)* — QEq partial charges from Slater Zeff and
   Allred–Rochow electronegativities feed a shielded Coulomb term; charges are
@@ -165,8 +165,8 @@ bent, and a conjugated (sp²) amide nitrogen stays planar.
 
 Connectivity alone cannot always determine a coordination geometry — a
 4-coordinate metal may be square-planar *or* tetrahedral, and a bare metal
-centre may have no reliable hybridization at all. **3D Edit → PEFF26 Metal Geometry
-Override** (also a button in *PEFF26 Settings*) opens a modeless table where you
+centre may have no reliable hybridization at all. **3D Edit → PMEFF26 Metal Geometry
+Override** (also a button in *PMEFF26 Settings*) opens a modeless table where you
 can force the geometry of individual atoms:
 
 | Override | Ideal L–M–L angles |
@@ -193,7 +193,7 @@ before, so the shipped defaults (including the d8 square-planar / octahedral
 auto-detection) are unchanged. They are also **independent of the electronic-
 effects setting** — a forced geometry applies whether or not electronic effects
 are on. **Apply** stores the overrides without moving atoms (then run *Optimize
-3D (PEFF26)* when you like); **Apply and Optimize** stores them and relaxes the
+3D (PMEFF26)* when you like); **Apply and Optimize** stores them and relaxes the
 molecule immediately. Only *applied* overrides are kept — they are saved with
 the project and restored when the window (or project) is reopened; an unsaved
 (blue) change is discarded if you close the window without applying it.
@@ -213,13 +213,13 @@ over the last 2 Å with zero slope at the cutoff, so both energy and force
 stay continuous as a pair crosses the boundary. A finite-difference Hessian
 over the analytic gradient powers the vibrational minimum check.
 
-> **Note:** PEFF26 energies are in internal, consistent units meant for
+> **Note:** PMEFF26 energies are in internal, consistent units meant for
 > **relative comparison and geometry guidance**, not thermochemistry. The goal is
 > to give the DFT optimizer a sensible starting geometry — not to replace it.
 
 ## Installation
 
-Copy the `peff26_plugin/` folder into your MoleditPy user plugin
+Copy the `pmeff26_plugin/` folder into your MoleditPy user plugin
 directory:
 
 - **Windows:** `C:\Users\<YourName>\.moleditpy\plugins\`
@@ -234,20 +234,20 @@ Then restart MoleditPy, or use **Plugins → Reload All Plugins**.
 python -m pytest tests/ -v
 
 # With coverage
-python -m pytest tests/ --cov=peff26_plugin --cov-report=term-missing
+python -m pytest tests/ --cov=pmeff26_plugin --cov-report=term-missing
 
 # Lint
-pylint peff26_plugin/
+pylint pmeff26_plugin/
 ```
 
-The engine (`peff26_plugin/forcefield.py`) is deliberately Qt-free and
+The engine (`pmeff26_plugin/forcefield.py`) is deliberately Qt-free and
 RDKit-free at its core — it operates on a plain-number `Topology` — which makes
 it fully unit-testable without a GUI. Only the thin boundary functions touch
 RDKit.
 
 ## Origin
 
-PEFF26 is derived from PMEFF 2.0.0 (same author, LGPL-3.0-or-later).
+PMEFF26 is derived from PMEFF 2.0.0 (same author, LGPL-3.0-or-later).
 
 ## License
 

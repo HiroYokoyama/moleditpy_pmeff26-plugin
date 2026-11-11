@@ -1,4 +1,4 @@
-"""Robustness and edge-case tests for the PEFF26 engine.
+"""Robustness and edge-case tests for the PMEFF26 engine.
 
 Covers degenerate inputs (empty, single atom, coincident atoms, disconnected
 fragments), physically special cases (charged species, isolated ions, large
@@ -17,7 +17,7 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from peff26_plugin import forcefield as ff
+from pmeff26_plugin import forcefield as ff
 
 
 # --- Degenerate / trivial inputs -------------------------------------------

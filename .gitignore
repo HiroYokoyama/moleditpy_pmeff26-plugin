@@ -217,8 +217,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# PEFF26 runtime options (user state, not source)
-peff26_plugin/settings.json
+# PMEFF26 runtime options (user state, not source)
+pmeff26_plugin/settings.json
 .pytest-tmp/
 /reference/pack/
 /reference/smoke/

@@ -1,4 +1,4 @@
-"""PEFF26 worker and progress UI; imported lazily by the plugin entry point."""
+"""PMEFF26 worker and progress UI; imported lazily by the plugin entry point."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class CalculationThread(QThread):
         except OptimizationCancelled as exc:
             self.error = exc
         except Exception as exc:  # worker boundary: deliver errors to the GUI
-            logger.exception("PEFF26 calculation failed")
+            logger.exception("PMEFF26 calculation failed")
             self.error = exc
 
 
@@ -126,7 +126,7 @@ def run_job(title: str, job: Job, parent: Any = None) -> Any:
     if app is None:
         return job(lambda *_args: None, lambda: False)
     if QThread.currentThread() != app.thread():
-        raise RuntimeError("PEFF26 dialogs must be opened on the GUI thread")
+        raise RuntimeError("PMEFF26 dialogs must be opened on the GUI thread")
     dialog = CalculationDialog(
         title, job, parent if isinstance(parent, QWidget) else None
     )
@@ -137,7 +137,7 @@ def run_job(title: str, job: Job, parent: Any = None) -> Any:
     cancelled = dialog.worker.cancel_event.is_set()
     dialog.deleteLater()
     if cancelled:
-        raise OptimizationCancelled("PEFF26 calculation cancelled")
+        raise OptimizationCancelled("PMEFF26 calculation cancelled")
     if error is not None:
         raise error
     return result

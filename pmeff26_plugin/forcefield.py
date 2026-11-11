@@ -1,6 +1,6 @@
-"""PEFF26 — a self-contained universal force field for MoleditPy.
+"""PMEFF26 — a self-contained universal force field for MoleditPy.
 
-PEFF26 is a small, dependency-free molecular force field parameterized across
+PMEFF26 is a small, dependency-free molecular force field parameterized across
 the **entire periodic table** (Z = 1..118). Unlike force fields that carry a
 hand-tuned parameter table for a fixed subset of elements, every parameter here
 is *derived* from a single per-element property — the Pyykko single-bond
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # --- Element parameters -----------------------------------------------------
 
 # Pyykko & Atsumi single-bond covalent radii (2009), in picometres, for every
-# element Z = 1..118. These are the *only* per-element inputs PEFF26 needs; all
+# element Z = 1..118. These are the *only* per-element inputs PMEFF26 needs; all
 # bonded and non-bonded parameters are derived from them, guaranteeing complete
 # periodic-table coverage.
 _COVALENT_RADII_PM: Tuple[int, ...] = (
@@ -195,7 +195,7 @@ _VDW_OFFSET_A = 0.90
 # ---------------------------------------------------------------------------
 # EMPIRICAL PARAMETERS
 #
-# PEFF26 is not derived from a published parameter set: most of what follows is
+# PMEFF26 is not derived from a published parameter set: most of what follows is
 # fitted or hand-tuned so that minimized geometries come out right, and the
 # energy scale is internally consistent rather than being kcal/mol. Treat any
 # absolute energy as arbitrary units; only geometries and relative energies
@@ -346,7 +346,7 @@ _OCTAHEDRAL_METALS = (
 
 # Per-atom coordination-geometry overrides.
 #
-# By default PEFF26 picks each center's ideal bond angles from its hybridization
+# By default PMEFF26 picks each center's ideal bond angles from its hybridization
 # (or, for the auto-detected d-block metals above, from square-planar /
 # octahedral trans/cis targets). A caller may instead *force* the geometry of
 # any individual atom via the ``geometry_overrides`` argument of
@@ -626,7 +626,7 @@ def polar_bond_contraction(z_i: int, z_j: int) -> float:
 
 
 def bond_rest_length(z_i: int, z_j: int, order: float = 1.0) -> float:
-    """Return the PEFF26 rest length (Angstrom) of a Z_i-Z_j bond of *order*.
+    """Return the PMEFF26 rest length (Angstrom) of a Z_i-Z_j bond of *order*.
 
     The Pyykko single-bond covalent radii are summed, contracted for bond
     polarity (:func:`polar_bond_contraction`), then scaled for the bond order
@@ -645,7 +645,7 @@ def slater_zeff(atomic_number: int) -> float:
 
     Derived entirely from the atomic number via the Aufbau occupation and
     Slater's screening rules — no per-element table — so it covers the whole
-    periodic table like every other PEFF26 parameter.
+    periodic table like every other PMEFF26 parameter.
     """
     z = min(max(int(atomic_number), 1), 118)
     per_n: Dict[int, int] = {}
@@ -670,7 +670,7 @@ def pauling_electronegativity(atomic_number: int) -> float:
     """Allred-Rochow electronegativity on the (Pauling-like) chi scale.
 
     chi_AR = 0.359 * Zeff / r^2 + 0.744, from the Slater effective charge and
-    the Pyykko covalent radius — derived, like every PEFF26 parameter, from the
+    the Pyykko covalent radius — derived, like every PMEFF26 parameter, from the
     atomic number alone. Used both for the QEq charge solve (after conversion
     to an energy scale) and for the polar-bond length contraction.
     """
@@ -733,7 +733,7 @@ def qeq_charges(
     try:
         solution = np.linalg.solve(system, rhs)
     except np.linalg.LinAlgError:  # coincident atoms etc.
-        logger.warning("PEFF26: QEq solve failed; using zero charges.")
+        logger.warning("PMEFF26: QEq solve failed; using zero charges.")
         return np.zeros(n)
     return solution[:n]
 
@@ -1808,7 +1808,7 @@ def hessian(
     hess = np.zeros((n3, n3))
     for a in range(n3):
         if cancel_callback is not None and cancel_callback():
-            raise OptimizationCancelled("PEFF26 vibrational check cancelled")
+            raise OptimizationCancelled("PMEFF26 vibrational check cancelled")
         up = flat.copy()
         up[a] += step
         down = flat.copy()
@@ -1851,7 +1851,7 @@ def vibrational_analysis(
         cancel_callback=cancel_callback,
     )
     if cancel_callback is not None and cancel_callback():
-        raise OptimizationCancelled("PEFF26 vibrational check cancelled")
+        raise OptimizationCancelled("PMEFF26 vibrational check cancelled")
     eigvals = np.linalg.eigvalsh(matrix)
     freqs = np.sign(eigvals) * np.sqrt(np.abs(eigvals))
     return {
@@ -1907,7 +1907,7 @@ class _RunControl:
     def check(self) -> None:
         """Stop before the next expensive operation if cancellation was requested."""
         if self.cancel_callback is not None and self.cancel_callback():
-            raise OptimizationCancelled("PEFF26 optimization cancelled")
+            raise OptimizationCancelled("PMEFF26 optimization cancelled")
 
     def report(self, step: int, energy: float, grad: np.ndarray, phase: str) -> None:
         """Report absolute iteration counts across FIRE and L-BFGS."""
@@ -2163,7 +2163,7 @@ def optimize(
     progress_callback: Optional[Callable[[OptimizationProgress], None]] = None,
     cancel_callback: Optional[Callable[[], bool]] = None,
 ) -> Tuple[np.ndarray, OptimizeResult]:
-    """Minimize the PEFF26 energy of *coords*: FIRE 2.0, then L-BFGS.
+    """Minimize the PMEFF26 energy of *coords*: FIRE 2.0, then L-BFGS.
 
     FIRE (Fast Inertial Relaxation Engine) handles the far-from-minimum
     regime — it is robust through steric clashes and large rearrangements —
@@ -2348,7 +2348,7 @@ def compute_energy(
     use_polar_contraction: bool = True,
     geometry_overrides: Optional[Dict[int, str]] = None,
 ) -> Optional[float]:
-    """Return the PEFF26 single-point energy of *mol*, or None if unavailable.
+    """Return the PMEFF26 single-point energy of *mol*, or None if unavailable.
 
     Accepts the same physics switches as :func:`compute_energy_components` and
     :func:`check_minimum` (of which this is the total-energy shim), so a
@@ -2376,7 +2376,7 @@ def compute_energy_components(
     use_polar_contraction: bool = True,
     geometry_overrides: Optional[Dict[int, str]] = None,
 ) -> Optional[Dict[str, float]]:
-    """Return the per-term PEFF26 energy decomposition of *mol*, or None.
+    """Return the per-term PMEFF26 energy decomposition of *mol*, or None.
 
     Same keys as :func:`energy_components`; None when the molecule has no
     conformer to evaluate.
@@ -2447,7 +2447,7 @@ def optimize_rdkit_mol(
     progress_callback: Optional[Callable[[OptimizationProgress], None]] = None,
     cancel_callback: Optional[Callable[[], bool]] = None,
 ) -> Tuple[bool, Optional[OptimizeResult]]:
-    """Optimize an RDKit molecule's conformer in place with PEFF26.
+    """Optimize an RDKit molecule's conformer in place with PMEFF26.
 
     Returns (success, result). Molecules with fewer than two atoms or without a
     conformer are treated as trivially successful (nothing to do) with a None
@@ -2457,11 +2457,11 @@ def optimize_rdkit_mol(
         return True, None
 
     if cancel_callback is not None and cancel_callback():
-        raise OptimizationCancelled("PEFF26 optimization cancelled")
+        raise OptimizationCancelled("PMEFF26 optimization cancelled")
 
     coords = _conformer_coords(mol)
     if coords is None:
-        logger.warning("PEFF26: molecule has no 3D conformer to optimize.")
+        logger.warning("PMEFF26: molecule has no 3D conformer to optimize.")
         return False, None
 
     topo = topology_from_rdkit(
@@ -2483,7 +2483,7 @@ def optimize_rdkit_mol(
     )
 
     if not np.all(np.isfinite(new_coords)):
-        logger.error("PEFF26: optimization produced non-finite coordinates.")
+        logger.error("PMEFF26: optimization produced non-finite coordinates.")
         return False, result
 
     conf = mol.GetConformer()
@@ -2494,7 +2494,7 @@ def optimize_rdkit_mol(
             x, y, z = new_coords[i]
             conf.SetAtomPosition(i, Point3D(float(x), float(y), float(z)))
     except Exception:
-        logger.exception("PEFF26: failed to write optimized coordinates back.")
+        logger.exception("PMEFF26: failed to write optimized coordinates back.")
         return False, result
 
     return True, result

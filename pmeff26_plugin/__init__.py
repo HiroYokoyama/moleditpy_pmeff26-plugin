@@ -1,20 +1,20 @@
-"""PEFF26 — a force field for MoleditPy, forked from PMEFF 2.0.0.
+"""PMEFF26 — a force field for MoleditPy, forked from PMEFF 2.0.0.
 
-A MoleditPy plugin providing PEFF26, a self-contained universal force field
-that covers the entire periodic table (Z = 1..118). PEFF26 is a pre-DFT
+A MoleditPy plugin providing PMEFF26, a self-contained universal force field
+that covers the entire periodic table (Z = 1..118). PMEFF26 is a pre-DFT
 geometry-cleanup force field: its purpose is *initial structure preparation*
 — removing clashes, fixing bond lengths and angles, placing metal centers in
 the correct coordination geometry — not high-accuracy thermochemistry. It
 registers:
 
-* an **Optimize 3D** method ("PEFF26") that relaxes the current 3D
+* an **Optimize 3D** method ("PMEFF26") that relaxes the current 3D
   geometry with a dependency-free FIRE + L-BFGS optimizer,
-* an **Analysis** tool ("PEFF26 Single-Point Energy") that reports the current
+* an **Analysis** tool ("PMEFF26 Single-Point Energy") that reports the current
   force-field energy (with per-term decomposition) without modifying the
   molecule,
-* an **Analysis** tool ("PEFF26 Minimum Check (Vibrational)") that verifies
+* an **Analysis** tool ("PMEFF26 Minimum Check (Vibrational)") that verifies
   the current geometry is a true minimum, and
-* a **Settings/PEFF26 Setting** menu entry that opens a settings dialog.
+* a **Settings/PMEFF26 Setting** menu entry that opens a settings dialog.
 
 See ``forcefield.py`` for the physics; this module only wires it into the host
 via the stable ``PluginContext`` API.
@@ -26,12 +26,12 @@ import os
 import tempfile
 from pathlib import Path
 
-PLUGIN_NAME = "PEFF26 Plugin"
+PLUGIN_NAME = "PMEFF26 Plugin"
 PLUGIN_VERSION = "0.1.0"
 # Must equal the GitHub username (the moleditpy registry enforces this).
 PLUGIN_AUTHOR = "HiroYokoyama"
 PLUGIN_DESCRIPTION = (
-    "PEFF26 — a self-contained universal "
+    "PMEFF26 — a self-contained universal "
     "force field covering the entire periodic table (Z=1..118). Adds a "
     "geometry optimizer, a single-point energy tool with per-term "
     "decomposition, and a vibrational minimum check. For initial DFT structure "
@@ -42,10 +42,10 @@ PLUGIN_TAGS = ["Optimization"]
 PLUGIN_SUPPORTED_MOLEDITPY_VERSION = ">=5.0.0, <6.0.0"
 PLUGIN_DEPENDENCIES = ["numpy", "rdkit"]
 
-_OPT_METHOD_NAME = f"PEFF26 (v{PLUGIN_VERSION})"
+_OPT_METHOD_NAME = f"PMEFF26 (v{PLUGIN_VERSION})"
 _MAX_ITER = 1000
 _SCOPE_NOTE = (
-    "PEFF26 is only for initial structure preparation before DFT. Its geometries, "
+    "PMEFF26 is only for initial structure preparation before DFT. Its geometries, "
     "energies and modes are approximate, not quantitatively accurate substitutes for DFT results. "
 )
 
@@ -71,7 +71,7 @@ _DEFAULT_SETTINGS = {
 
 logger = logging.getLogger(__name__)
 
-# The physics options used the last time PEFF26 actually optimized the current
+# The physics options used the last time PMEFF26 actually optimized the current
 # document, or None if it never has. Saved into (and restored from) the project
 # file, and cleared on File > New, so a project remembers what it was last
 # optimized with. This is a per-document record only; it does not override the
@@ -80,7 +80,7 @@ _last_opt_settings = None
 
 # Per-atom coordination-geometry overrides for the current document, mapping
 # ``atom_index -> geometry name`` (see forcefield._VALID_GEOMETRIES). Set via
-# the Metal Geometry Override table, applied by every PEFF26 optimize / energy /
+# the Metal Geometry Override table, applied by every PMEFF26 optimize / energy /
 # minimum-check call, persisted into the project file and restored on load,
 # and cleared on File > New. Empty means "no overrides" — default behavior.
 _geometry_overrides: dict = {}
@@ -102,7 +102,7 @@ def load_settings() -> dict:
     except FileNotFoundError:
         pass
     except (OSError, ValueError):
-        logger.warning("PEFF26: could not read %s; using defaults.", _SETTINGS_FILE)
+        logger.warning("PMEFF26: could not read %s; using defaults.", _SETTINGS_FILE)
     return settings
 
 
@@ -114,7 +114,7 @@ def save_settings(settings: dict) -> None:
             json.dump(settings, fh, indent=2)
         os.replace(tmp, _SETTINGS_FILE)
     except OSError:
-        logger.exception("PEFF26: failed to write %s", _SETTINGS_FILE)
+        logger.exception("PMEFF26: failed to write %s", _SETTINGS_FILE)
 
 
 def electronic_effects_enabled() -> bool:
@@ -141,32 +141,32 @@ def _iteration_budget() -> int:
             1, min(100000, int(load_settings().get("max_iterations", _MAX_ITER)))
         )
     except (TypeError, ValueError, OverflowError):
-        logger.warning("PEFF26: invalid maximum iterations; using %d.", _MAX_ITER)
+        logger.warning("PMEFF26: invalid maximum iterations; using %d.", _MAX_ITER)
         return _MAX_ITER
 
 
 def initialize(context):
-    """Register PEFF26's optimization method, energy tool and settings."""
+    """Register PMEFF26's optimization method, energy tool and settings."""
     context.register_optimization_method(
         _OPT_METHOD_NAME, lambda mol: _optimize(mol, context)
     )
     context.add_analysis_tool(
-        "PEFF26 Single-Point Energy", lambda: _show_energy(context)
+        "PMEFF26 Single-Point Energy", lambda: _show_energy(context)
     )
     context.add_analysis_tool(
-        "PEFF26 Minimum Check (Vibrational)", lambda: _check_minimum(context)
+        "PMEFF26 Minimum Check (Vibrational)", lambda: _check_minimum(context)
     )
     context.add_menu_action(
-        "Settings/PEFF26 Setting",
+        "Settings/PMEFF26 Setting",
         lambda: _open_settings_dialog(context),
-        text="PEFF26 Settings…",
+        text="PMEFF26 Settings…",
     )
-    # One menu entry under 3D Edit; also reachable from a button in PEFF26
+    # One menu entry under 3D Edit; also reachable from a button in PMEFF26
     # Settings. Both open the same modeless override table.
     context.add_menu_action(
-        "3D Edit/PEFF26 Metal Geometry Override",
+        "3D Edit/PMEFF26 Metal Geometry Override",
         lambda: _open_geometry_override_window(context),
-        text="PEFF26 Metal Geometry Override…",
+        text="PMEFF26 Metal Geometry Override…",
     )
     # Persist the last-used optimization options and the per-atom geometry
     # overrides with the project; restore the overrides on load; forget both on
@@ -177,10 +177,10 @@ def initialize(context):
 
 
 def _save_project_state() -> dict:
-    """Return the PEFF26 state to persist in the project (``.pmeprj``) file.
+    """Return the PMEFF26 state to persist in the project (``.pmeprj``) file.
 
     ``last_opt_settings`` is the physics options of the last optimization (None
-    when PEFF26 has not optimized this document yet); ``geometry_overrides`` is
+    when PMEFF26 has not optimized this document yet); ``geometry_overrides`` is
     the per-atom coordination-geometry override table (keyed by atom index as a
     string, since JSON object keys are strings).
     """
@@ -233,12 +233,12 @@ def _apply_geometry_overrides(context, overrides: dict) -> None:
     if n:
         _status(
             context,
-            f"PEFF26: {n} atom geometry override(s) set — run "
-            "Optimize 3D (PEFF26) to apply them.",
+            f"PMEFF26: {n} atom geometry override(s) set — run "
+            "Optimize 3D (PMEFF26) to apply them.",
             6000,
         )
     else:
-        _status(context, "PEFF26: geometry overrides cleared.", 4000)
+        _status(context, "PMEFF26: geometry overrides cleared.", 4000)
 
 
 def _apply_and_optimize_geometry(context, overrides: dict) -> None:
@@ -246,7 +246,7 @@ def _apply_and_optimize_geometry(context, overrides: dict) -> None:
     _store_geometry_overrides(overrides)
     mol = getattr(context, "current_molecule", None)
     if mol is None:
-        _status(context, "PEFF26: no molecule loaded to optimize.", 3000)
+        _status(context, "PMEFF26: no molecule loaded to optimize.", 3000)
         return
     if _optimize(mol, context):
         # Redraw the 3D view so the relaxed geometry is visible immediately.
@@ -280,7 +280,7 @@ def _host_window(context):
 
 
 def _open_settings_dialog(context) -> None:
-    """Open the PEFF26 settings dialog and save any changes."""
+    """Open the PMEFF26 settings dialog and save any changes."""
     from .settings_dialog import open_settings_dialog
 
     parent = _host_window(context)
@@ -296,11 +296,11 @@ def _open_settings_dialog(context) -> None:
     # Merge: preserve unknown keys the dialog doesn't know about.
     current.update(updated)
     save_settings(current)
-    _status(context, "PEFF26 settings saved.", 3000)
+    _status(context, "PMEFF26 settings saved.", 3000)
 
 
 def _optimize(mol, context) -> bool:
-    """Relax *mol* in place with PEFF26. Returns True on success."""
+    """Relax *mol* in place with PMEFF26. Returns True on success."""
     from .forcefield import OptimizationCancelled, optimize_rdkit_mol
 
     kwargs = _settings_kwargs()
@@ -309,7 +309,7 @@ def _optimize(mol, context) -> bool:
     try:
         working, output = _calculate(
             context,
-            "PEFF26 Optimization",
+            "PMEFF26 Optimization",
             mol,
             lambda copy, report, cancel: optimize_rdkit_mol(
                 copy,
@@ -322,15 +322,15 @@ def _optimize(mol, context) -> bool:
         )
         success, result = output
     except OptimizationCancelled:
-        _status(context, "PEFF26: cancelled; original geometry preserved.", 5000)
+        _status(context, "PMEFF26: cancelled; original geometry preserved.", 5000)
         return False
     except Exception as exc:  # pragma: no cover - defensive GUI guard
-        logger.exception("PEFF26 optimization failed")
-        _status(context, f"PEFF26 optimization failed: {exc}", 5000)
+        logger.exception("PMEFF26 optimization failed")
+        _status(context, f"PMEFF26 optimization failed: {exc}", 5000)
         return False
 
     if not success:
-        _status(context, "PEFF26: no 3D geometry to optimize.", 4000)
+        _status(context, "PMEFF26: no 3D geometry to optimize.", 4000)
         return False
 
     # Unconverged: geometry is applied regardless; status bar reports the outcome.
@@ -342,7 +342,7 @@ def _optimize(mol, context) -> bool:
     if isinstance(current, Chem.Mol) and current is not mol:  # pylint: disable=no-member
         _status(
             context,
-            "PEFF26: molecule changed during calculation; result discarded.",
+            "PMEFF26: molecule changed during calculation; result discarded.",
             5000,
         )
         return False
@@ -360,44 +360,44 @@ def _optimize(mol, context) -> bool:
         state = "converged" if result.converged else "stopped (max iterations)"
         _status(
             context,
-            f"PEFF26 {state} in {result.steps} steps "
+            f"PMEFF26 {state} in {result.steps} steps "
             f"(E = {result.energy:.2f}, |F|max = {result.max_force:.4f}).",
             5000,
         )
     else:
-        _status(context, "PEFF26: nothing to optimize (single atom).", 3000)
+        _status(context, "PMEFF26: nothing to optimize (single atom).", 3000)
     return True
 
 
 def _show_energy(context) -> None:
-    """Report the PEFF26 single-point energy of the current molecule."""
+    """Report the PMEFF26 single-point energy of the current molecule."""
     from .forcefield import OptimizationCancelled, compute_energy_components
 
     mol = context.current_molecule
     if mol is None:
-        _status(context, "PEFF26: no molecule loaded.", 3000)
+        _status(context, "PMEFF26: no molecule loaded.", 3000)
         return
 
     try:
         kwargs, overrides = _settings_kwargs(), _overrides_kwarg()
         _working, comp = _calculate(
             context,
-            "PEFF26 Single-Point Energy",
+            "PMEFF26 Single-Point Energy",
             mol,
             lambda copy, _report, _cancel: compute_energy_components(
                 copy, geometry_overrides=overrides, **kwargs
             ),
         )
     except OptimizationCancelled:
-        _status(context, "PEFF26 energy calculation cancelled.", 5000)
+        _status(context, "PMEFF26 energy calculation cancelled.", 5000)
         return
     except Exception as exc:  # pragma: no cover - defensive GUI guard
-        logger.exception("PEFF26 energy evaluation failed")
-        _status(context, f"PEFF26 energy failed: {exc}", 5000)
+        logger.exception("PMEFF26 energy evaluation failed")
+        _status(context, f"PMEFF26 energy failed: {exc}", 5000)
         return
 
     if comp is None:
-        _status(context, "PEFF26: molecule has no 3D coordinates.", 4000)
+        _status(context, "PMEFF26: molecule has no 3D coordinates.", 4000)
         return
 
     base = (
@@ -412,25 +412,25 @@ def _show_energy(context) -> None:
     )
     _status(
         context,
-        f"PEFF26 single-point energy: {comp['total']:.4f} ({base}{extras})",
+        f"PMEFF26 single-point energy: {comp['total']:.4f} ({base}{extras})",
         8000,
     )
 
 
 def _check_minimum(context) -> None:
-    """Report whether the current geometry is a true PEFF26 minimum."""
+    """Report whether the current geometry is a true PMEFF26 minimum."""
     from .forcefield import OptimizationCancelled, check_minimum
 
     mol = context.current_molecule
     if mol is None:
-        _status(context, "PEFF26: no molecule loaded.", 3000)
+        _status(context, "PMEFF26: no molecule loaded.", 3000)
         return
 
     try:
         kwargs, overrides = _settings_kwargs(), _overrides_kwarg()
         _working, result = _calculate(
             context,
-            "PEFF26 Minimum Check (Vibrational)",
+            "PMEFF26 Minimum Check (Vibrational)",
             mol,
             lambda copy, report, cancel: check_minimum(
                 copy,
@@ -441,22 +441,22 @@ def _check_minimum(context) -> None:
             ),
         )
     except OptimizationCancelled:
-        _status(context, "PEFF26 vibrational check cancelled.", 5000)
+        _status(context, "PMEFF26 vibrational check cancelled.", 5000)
         return
     except Exception as exc:  # pragma: no cover - defensive GUI guard
-        logger.exception("PEFF26 vibrational analysis failed")
-        _status(context, f"PEFF26 vibrational analysis failed: {exc}", 5000)
+        logger.exception("PMEFF26 vibrational analysis failed")
+        _status(context, f"PMEFF26 vibrational analysis failed: {exc}", 5000)
         return
 
     if result is None:
-        _status(context, "PEFF26: molecule has no 3D coordinates.", 4000)
+        _status(context, "PMEFF26: molecule has no 3D coordinates.", 4000)
         return
 
     stationary = result["max_force"] < 1e-3
     if result["is_minimum"] and stationary:
         _status(
             context,
-            "PEFF26 vibrational check: true minimum "
+            "PMEFF26 vibrational check: true minimum "
             f"({result['num_zero']} near-zero modes, 0 imaginary).",
             8000,
         )
@@ -464,7 +464,7 @@ def _check_minimum(context) -> None:
         lowest = float(result["frequencies"][0])
         _status(
             context,
-            f"PEFF26 vibrational check: NOT a minimum — "
+            f"PMEFF26 vibrational check: NOT a minimum — "
             f"{result['num_imaginary']} imaginary mode(s), lowest "
             f"{lowest:.3f}. Re-optimize from a perturbed geometry.",
             8000,
@@ -472,7 +472,7 @@ def _check_minimum(context) -> None:
     else:
         _status(
             context,
-            "PEFF26 minimum check: no imaginary modes, but geometry is not stationary.",
+            "PMEFF26 minimum check: no imaginary modes, but geometry is not stationary.",
             8000,
         )
 
@@ -498,7 +498,7 @@ def _check_minimum(context) -> None:
         rows.append([str(i), f"{frequency:.6f}", f"{eigenvalue:.6f}", kind])
     _display_result(
         context,
-        "PEFF26 Minimum Check (Vibrational)",
+        "PMEFF26 Minimum Check (Vibrational)",
         f"{verdict}\nImaginary: {result['num_imaginary']}   Near-zero: {result['num_zero']}\n"
         f"Maximum force: {result['max_force']:.6f}",
         ["Mode", "Signed sqrt(λ)", "Eigenvalue λ", "Classification"],

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remote driver for the PEFF26 reference pack (standard library only).
+"""Remote driver for the PMEFF26 reference pack (standard library only).
 
 Runs on the compute host, in the directory holding ``pack.tgz``:
 

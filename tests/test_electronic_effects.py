@@ -1,4 +1,4 @@
-"""Tests for PEFF26's optional electronic-effects module.
+"""Tests for PMEFF26's optional electronic-effects module.
 
 Covers the derived electronic parameters (Slater Zeff, Allred-Rochow
 electronegativity, hardness), QEq charges, the shielded Coulomb term, the
@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 from rdkit import Chem
 
-import peff26_plugin as plugin
-from peff26_plugin import forcefield as ff
+import pmeff26_plugin as plugin
+from pmeff26_plugin import forcefield as ff
 from tests.conftest import make_context
 from tests.test_forcefield import _numeric_gradient
 
@@ -253,7 +253,7 @@ def test_settings_menu_action_registered(settings_file):
     ctx = make_context()
     plugin.initialize(ctx)
     paths = [c.args[0] for c in ctx.add_menu_action.call_args_list]
-    assert "Settings/PEFF26 Setting" in paths
+    assert "Settings/PMEFF26 Setting" in paths
 
 
 def test_corrupt_settings_file_falls_back_to_defaults(settings_file):
@@ -272,7 +272,7 @@ def test_optimizer_passes_electronic_effects_flag(settings_file, monkeypatch):
         seen.update(kwargs)
         return True, None
 
-    monkeypatch.setattr("peff26_plugin.forcefield.optimize_rdkit_mol", fake_optimize)
+    monkeypatch.setattr("pmeff26_plugin.forcefield.optimize_rdkit_mol", fake_optimize)
     callback = ctx.register_optimization_method.call_args[0][1]
     assert callback(Chem.MolFromSmiles("CCO")) is True
     assert seen["electronic_effects"] is True

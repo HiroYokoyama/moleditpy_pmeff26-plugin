@@ -1,4 +1,4 @@
-"""Reference molecule sets for the PEFF26 parameter fit.
+"""Reference molecule sets for the PMEFF26 parameter fit.
 
 Three sets, all neutral closed-shell molecules over H, B, C, N, O, F, Si, P,
 S, Cl, Br and I:

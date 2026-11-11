@@ -1,4 +1,4 @@
-"""Unit tests for the PEFF26 engine (peff26_plugin.forcefield)."""
+"""Unit tests for the PMEFF26 engine (pmeff26_plugin.forcefield)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from peff26_plugin import forcefield as ff
+from pmeff26_plugin import forcefield as ff
 
 
 # --- Element parameter coverage --------------------------------------------

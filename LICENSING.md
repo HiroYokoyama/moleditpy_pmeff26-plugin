@@ -1,6 +1,6 @@
 # Licensing and independently developed plugins
 
-The first-party source code in **moleditpy_peff26-plugin** is licensed under the GNU Lesser
+The first-party source code in **moleditpy_pmeff26-plugin** is licensed under the GNU Lesser
 General Public License, version 3 or (at your option) any later version
 (LGPL-3.0-or-later). `LICENSE` contains LGPLv3's additional permissions;
 `COPYING` contains the incorporated GPLv3 terms. The code is derived from

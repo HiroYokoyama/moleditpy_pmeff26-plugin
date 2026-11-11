@@ -12,8 +12,8 @@ import math
 import numpy as np
 import pytest
 
-from peff26_plugin import forcefield as ff
-from peff26_plugin.forcefield import build_topology, _normalize_geometry
+from pmeff26_plugin import forcefield as ff
+from pmeff26_plugin.forcefield import build_topology, _normalize_geometry
 
 
 def _angles_deg(topo):
@@ -162,7 +162,7 @@ def test_trigonal_bipyramidal_optimizes_cleanly():
     rng = np.random.default_rng(1)
     start = coords + rng.normal(0, 0.1, coords.shape)
     start[0] = coords[0]
-    from peff26_plugin.forcefield import optimize
+    from pmeff26_plugin.forcefield import optimize
 
     new_coords, result = optimize(start, topo, max_iter=400)
     assert result.converged
@@ -241,7 +241,7 @@ def test_overrides_apply_with_electronic_effects_disabled():
     # geometry works even for a plain carbon with electronic effects OFF.
     from rdkit import Chem
     from rdkit.Chem import AllChem
-    from peff26_plugin.forcefield import topology_from_rdkit
+    from pmeff26_plugin.forcefield import topology_from_rdkit
 
     mol = Chem.AddHs(Chem.MolFromSmiles("C"))  # methane
     AllChem.EmbedMolecule(mol, randomSeed=3)
@@ -278,7 +278,7 @@ def test_optimize_rdkit_mol_threads_overrides(monkeypatch):
 # Override-dialog pure helpers
 # --------------------------------------------------------------------------
 def test_dialog_geometry_choices_match_engine():
-    from peff26_plugin.geometry_override_dialog import GEOMETRY_CHOICES
+    from pmeff26_plugin.geometry_override_dialog import GEOMETRY_CHOICES
 
     keys = {key for _label, key in GEOMETRY_CHOICES if key is not None}
     assert keys == set(ff._VALID_GEOMETRIES)
@@ -302,7 +302,7 @@ def test_dialog_geometry_choices_match_engine():
     ],
 )
 def test_is_metal(z, metal):
-    from peff26_plugin.geometry_override_dialog import is_metal
+    from pmeff26_plugin.geometry_override_dialog import is_metal
 
     assert is_metal(z) is metal
 
@@ -326,6 +326,6 @@ def test_is_metal(z, metal):
     ],
 )
 def test_geometry_allowed(key, degree, allowed):
-    from peff26_plugin.geometry_override_dialog import geometry_allowed
+    from pmeff26_plugin.geometry_override_dialog import geometry_allowed
 
     assert geometry_allowed(key, degree) is allowed

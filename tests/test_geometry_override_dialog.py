@@ -1,4 +1,4 @@
-"""Tests for peff26_plugin.geometry_override_dialog under a stubbed PySide6.
+"""Tests for pmeff26_plugin.geometry_override_dialog under a stubbed PySide6.
 
 Drives the real ``_OverrideWindow`` class (constructed directly, not through
 Qt's event loop) with the hand-built stand-ins in ``tests/qt_stubs.py``, so
@@ -18,7 +18,7 @@ from rdkit.Geometry import Point3D
 
 from tests import qt_stubs
 
-MODULE_NAME = "peff26_plugin.geometry_override_dialog"
+MODULE_NAME = "pmeff26_plugin.geometry_override_dialog"
 
 
 def make_mol(nums, bonds, coords):
@@ -194,7 +194,7 @@ def test_open_override_window_creates_and_registers(god_mod):
     ctx = FakeContext(mol=mol)
     win = god_mod.open_override_window(ctx, {0: "tetrahedral"})
     assert win is not None
-    assert ctx.get_window("peff26_geometry_override") is win
+    assert ctx.get_window("pmeff26_geometry_override") is win
     assert win._shown is True
     assert win._overrides == {0: "tetrahedral"}
 
@@ -504,7 +504,7 @@ def test_highlight_selected_adds_mesh_for_selection(god_mod):
     win = god_mod._OverrideWindow(ctx, {}, on_apply=None)
     win.metals_only.setChecked(False)
     win.table._set_selected_rows([0])
-    assert plotter.added == ["peff26_geom_selection"]
+    assert plotter.added == ["pmeff26_geom_selection"]
     assert plotter.render_calls >= 1
 
 
@@ -516,7 +516,7 @@ def test_highlight_selected_removes_actor_when_empty(god_mod):
     win.metals_only.setChecked(False)
     win.table._set_selected_rows([0])
     win.table._set_selected_rows([])
-    assert "peff26_geom_selection" in plotter.removed
+    assert "pmeff26_geom_selection" in plotter.removed
 
 
 def test_highlight_selected_missing_pyvista_is_swallowed(god_mod):
@@ -547,7 +547,7 @@ def test_close_event_reverts_uncommitted_edits(god_mod):
     win.close()
     assert win._overrides == {0: "tetrahedral"}
     assert win._dirty == set()
-    assert plotter.removed == ["peff26_geom_selection"]
+    assert plotter.removed == ["pmeff26_geom_selection"]
     assert plotter.render_calls >= 1
 
 

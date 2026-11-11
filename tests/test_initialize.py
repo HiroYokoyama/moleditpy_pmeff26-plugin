@@ -1,4 +1,4 @@
-"""Tests for the plugin entry point (peff26_plugin.__init__)."""
+"""Tests for the plugin entry point (pmeff26_plugin.__init__)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-import peff26_plugin as plugin
+import pmeff26_plugin as plugin
 from tests.conftest import make_context
 
 
@@ -19,7 +19,7 @@ def _embed(smiles: str) -> Chem.Mol:
 
 
 def test_metadata_present():
-    assert plugin.PLUGIN_NAME == "PEFF26 Plugin"
+    assert plugin.PLUGIN_NAME == "PMEFF26 Plugin"
     # Shape only, not a pinned literal: version bumps must not break tests.
     assert re.fullmatch(r"\d+\.\d+\.\d+(?:a\d+)?", plugin.PLUGIN_VERSION)
     assert "numpy" in plugin.PLUGIN_DEPENDENCIES
@@ -35,10 +35,10 @@ def test_initialize_registers_method_and_tools():
     plugin.initialize(ctx)
     ctx.register_optimization_method.assert_called_once()
     name = ctx.register_optimization_method.call_args[0][0]
-    assert name == f"PEFF26 (v{plugin.PLUGIN_VERSION})"
+    assert name == f"PMEFF26 (v{plugin.PLUGIN_VERSION})"
     assert set(_analysis_tools(ctx)) == {
-        "PEFF26 Single-Point Energy",
-        "PEFF26 Minimum Check (Vibrational)",
+        "PMEFF26 Single-Point Energy",
+        "PMEFF26 Minimum Check (Vibrational)",
     }
 
 
@@ -49,13 +49,13 @@ def _menu_paths(ctx):
 def test_settings_toggle_lives_under_settings_menu():
     ctx = make_context()
     plugin.initialize(ctx)
-    assert "Settings/PEFF26 Setting" in _menu_paths(ctx)
+    assert "Settings/PMEFF26 Setting" in _menu_paths(ctx)
 
 
 def test_geometry_override_menu_registered():
     ctx = make_context()
     plugin.initialize(ctx)
-    assert "3D Edit/PEFF26 Metal Geometry Override" in _menu_paths(ctx)
+    assert "3D Edit/PMEFF26 Metal Geometry Override" in _menu_paths(ctx)
 
 
 def test_registered_optimizer_callback_runs():
@@ -79,7 +79,7 @@ def test_energy_tool_reports_energy():
     ctx = make_context()
     ctx.current_molecule = _embed("CCO")
     plugin.initialize(ctx)
-    _analysis_tools(ctx)["PEFF26 Single-Point Energy"]()
+    _analysis_tools(ctx)["PMEFF26 Single-Point Energy"]()
     msg = ctx.show_status_message.call_args[0][0]
     assert "energy" in msg.lower()
 
@@ -88,7 +88,7 @@ def test_energy_tool_handles_no_molecule():
     ctx = make_context()
     ctx.current_molecule = None
     plugin.initialize(ctx)
-    _analysis_tools(ctx)["PEFF26 Single-Point Energy"]()
+    _analysis_tools(ctx)["PMEFF26 Single-Point Energy"]()
     msg = ctx.show_status_message.call_args[0][0]
     assert "no molecule" in msg.lower()
 
@@ -100,7 +100,7 @@ def test_minimum_check_tool_reports_verdict():
     callback = ctx.register_optimization_method.call_args[0][1]
     assert callback(mol) is True
     ctx.current_molecule = mol
-    _analysis_tools(ctx)["PEFF26 Minimum Check (Vibrational)"]()
+    _analysis_tools(ctx)["PMEFF26 Minimum Check (Vibrational)"]()
     msg = ctx.show_status_message.call_args[0][0]
     assert "minimum" in msg.lower()
 
@@ -109,7 +109,7 @@ def test_minimum_check_tool_handles_no_conformer():
     ctx = make_context()
     ctx.current_molecule = Chem.AddHs(Chem.MolFromSmiles("CCO"))
     plugin.initialize(ctx)
-    _analysis_tools(ctx)["PEFF26 Minimum Check (Vibrational)"]()
+    _analysis_tools(ctx)["PMEFF26 Minimum Check (Vibrational)"]()
     msg = ctx.show_status_message.call_args[0][0]
     assert "no 3d" in msg.lower()
 
@@ -231,7 +231,7 @@ def test_optimizer_callback_survives_engine_exception(monkeypatch):
         raise RuntimeError("engine exploded")
 
     monkeypatch.setattr(plugin, "_optimize", plugin._optimize)
-    monkeypatch.setattr("peff26_plugin.forcefield.optimize_rdkit_mol", boom)
+    monkeypatch.setattr("pmeff26_plugin.forcefield.optimize_rdkit_mol", boom)
     assert callback(_embed("CCO")) is False
 
 

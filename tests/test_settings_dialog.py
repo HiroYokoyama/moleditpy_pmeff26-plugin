@@ -1,4 +1,4 @@
-"""Tests for peff26_plugin.settings_dialog under a stubbed PySide6.
+"""Tests for pmeff26_plugin.settings_dialog under a stubbed PySide6.
 
 Exercises the real dialog-construction/accept/reject code paths with the
 hand-built Qt stand-ins in ``tests/qt_stubs.py`` (not just import coverage):
@@ -16,7 +16,7 @@ import pytest
 
 from tests import qt_stubs
 
-MODULE_NAME = "peff26_plugin.settings_dialog"
+MODULE_NAME = "pmeff26_plugin.settings_dialog"
 
 
 @pytest.fixture()

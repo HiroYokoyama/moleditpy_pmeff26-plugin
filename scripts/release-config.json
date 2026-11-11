@@ -1,10 +1,10 @@
 {
-  "source": "peff26_plugin/__init__.py",
-  "title": "PEFF26 Plugin",
-  "package": "peff26_plugin",
-  "archive": "peff26_plugin_{version}.zip",
+  "source": "pmeff26_plugin/__init__.py",
+  "title": "PMEFF26 Plugin",
+  "package": "pmeff26_plugin",
+  "archive": "pmeff26_plugin_{version}.zip",
   "assets": [
-    "peff26_plugin_{version}.zip"
+    "pmeff26_plugin_{version}.zip"
   ],
   "include": [
     "README.md",

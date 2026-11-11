@@ -1,4 +1,4 @@
-"""GAMESS (US) input writer for the PEFF26 reference calculations.
+"""GAMESS (US) input writer for the PMEFF26 reference calculations.
 
 Level: wB97X-D / def2-TZVP (def2 ECP on iodine), spherical harmonics, RHF,
 neutral singlets. The basis is written inline from ``def2_tzvp_gamess.json``

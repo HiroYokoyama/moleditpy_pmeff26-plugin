@@ -1,9 +1,9 @@
-"""PEFF26 Metal Geometry Override — modeless per-atom geometry table (PySide6).
+"""PMEFF26 Metal Geometry Override — modeless per-atom geometry table (PySide6).
 
 Opens a non-modal window with a table of the current molecule's atoms and a
 per-atom coordination-geometry drop-down (Auto / Linear / Trigonal Planar /
 Square Planar / Tetrahedral / Octahedral). The chosen overrides are handed back
-to the plugin, which feeds them to the PEFF26 force field on the next optimize.
+to the plugin, which feeds them to the PMEFF26 force field on the next optimize.
 
 The window mirrors the official *XYZ Editor* plugin's interaction model:
 
@@ -118,7 +118,7 @@ def open_override_window(
     """Open (or re-show) the modeless geometry-override window.
 
     Returns the window, or ``None`` in a headless environment (no PySide6). The
-    window is registered with the host under the key ``"peff26_geometry_override"``
+    window is registered with the host under the key ``"pmeff26_geometry_override"``
     so repeated calls re-show the same instance rather than stacking windows.
     """
     try:
@@ -127,12 +127,12 @@ def open_override_window(
         return None
 
     get_window = getattr(context, "get_window", None)
-    win = get_window("peff26_geometry_override") if callable(get_window) else None
+    win = get_window("pmeff26_geometry_override") if callable(get_window) else None
     if win is None:
         win = _OverrideWindow(context, overrides or {}, on_apply, on_apply_and_optimize)
         register = getattr(context, "register_window", None)
         if callable(register):
-            register("peff26_geometry_override", win)
+            register("pmeff26_geometry_override", win)
     else:
         # Re-seed the working copy from the caller's current overrides.
         win.set_overrides(overrides or {})
@@ -218,7 +218,7 @@ if _HAVE_QT:
             self._row_atom: List[int] = []
             self._click_filter = None
             self._last_natoms = None
-            self.setWindowTitle("PEFF26 — Metal Geometry Override")
+            self.setWindowTitle("PMEFF26 — Metal Geometry Override")
             self.resize(560, 480)
             self._init_ui()
             self.load_atoms()
@@ -233,7 +233,7 @@ if _HAVE_QT:
             layout = QVBoxLayout(self)
 
             intro = QLabel(
-                "Force the coordination geometry PEFF26 uses for individual "
+                "Force the coordination geometry PMEFF26 uses for individual "
                 "atoms — mainly metal centers, whose geometry connectivity "
                 "alone cannot determine. <b>Auto</b> keeps the default "
                 "behavior. Options that don't fit an atom's neighbor count are "
@@ -263,7 +263,7 @@ if _HAVE_QT:
             self.apply_btn = QPushButton("Apply")
             self.apply_btn.setToolTip(
                 "Store these overrides (saved with the project). Does not "
-                "re-optimize — run Optimize 3D (PEFF26) to apply them."
+                "re-optimize — run Optimize 3D (PMEFF26) to apply them."
             )
             self.apply_btn.clicked.connect(self.apply)
             btns.addWidget(self.apply_btn)
@@ -271,7 +271,7 @@ if _HAVE_QT:
             self.apply_opt_btn = QPushButton("Apply and Optimize")
             self.apply_opt_btn.setToolTip(
                 "Store these overrides and immediately re-optimize the current "
-                "molecule with PEFF26."
+                "molecule with PMEFF26."
             )
             self.apply_opt_btn.clicked.connect(self.apply_and_optimize)
             btns.addWidget(self.apply_opt_btn)
@@ -428,7 +428,7 @@ if _HAVE_QT:
                 self._click_filter = _ClickFilter(self._on_plotter_click, parent=self)
                 interactor.installEventFilter(self._click_filter)
             except Exception as exc:  # pragma: no cover - defensive GUI guard
-                logger.debug("PEFF26 override picking unavailable: %s", exc)
+                logger.debug("PMEFF26 override picking unavailable: %s", exc)
 
         def _disable_plotter_picking(self):
             try:
@@ -437,7 +437,7 @@ if _HAVE_QT:
                 if interactor and self._click_filter:
                     interactor.removeEventFilter(self._click_filter)
             except Exception as exc:  # pragma: no cover - defensive GUI guard
-                logger.debug("PEFF26 override unhook failed: %s", exc)
+                logger.debug("PMEFF26 override unhook failed: %s", exc)
             self._click_filter = None
 
         def _on_plotter_click(self, x, y, widget, modifiers):
@@ -479,7 +479,7 @@ if _HAVE_QT:
                 self.table.selectRow(row)
                 self.table.scrollTo(self.table.model().index(row, 0))
             except Exception as exc:  # pragma: no cover - defensive GUI guard
-                logger.debug("PEFF26 override pick failed: %s", exc)
+                logger.debug("PMEFF26 override pick failed: %s", exc)
 
         def _highlight_selected(self):
             plotter = getattr(self.context, "plotter", None)
@@ -515,7 +515,7 @@ if _HAVE_QT:
             except (AttributeError, RuntimeError, TypeError):
                 cam = None
             if not points:
-                plotter.remove_actor("peff26_geom_selection")
+                plotter.remove_actor("pmeff26_geom_selection")
             else:
                 poly = pv.PolyData(np.array([pt_ for pt_, _r in points]))
                 poly["radii"] = [r for _pt, r in points]
@@ -524,7 +524,7 @@ if _HAVE_QT:
                 )
                 plotter.add_mesh(
                     spheres,
-                    name="peff26_geom_selection",
+                    name="pmeff26_geom_selection",
                     color="yellow",
                     opacity=0.5,
                     pickable=False,
@@ -547,10 +547,10 @@ if _HAVE_QT:
             plotter = getattr(self.context, "plotter", None)
             if plotter is not None:
                 try:
-                    plotter.remove_actor("peff26_geom_selection")
+                    plotter.remove_actor("pmeff26_geom_selection")
                     plotter.render()
                 except Exception as exc:  # pragma: no cover - defensive
-                    logger.debug("PEFF26 override close cleanup: %s", exc)
+                    logger.debug("PMEFF26 override close cleanup: %s", exc)
             super().closeEvent(event)
 
 

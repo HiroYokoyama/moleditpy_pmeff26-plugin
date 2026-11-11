@@ -36,7 +36,7 @@ try:
 except ImportError:  # pragma: no cover - exercised only without rdkit
     pass
 
-from peff26_plugin import forcefield as ff  # noqa: E402
+from pmeff26_plugin import forcefield as ff  # noqa: E402
 
 
 def _angle_deg(x, i, j, k):
@@ -60,8 +60,8 @@ def _embed(smiles, seed=0xC0FFEE):
     medium-ring alkynes -- cyclooctyne took 15 s and cyclononyne 74 s, and
     both needed several seed retries. Plain distance geometry embeds all of
     them first-try in under 10 ms. That is also the more honest starting
-    point for these tests: what is under test is where PEFF26 relaxes the ring
-    to, not how good RDKit's conformer generator is, and PEFF26 converges from
+    point for these tests: what is under test is where PMEFF26 relaxes the ring
+    to, not how good RDKit's conformer generator is, and PMEFF26 converges from
     the crude geometry in ~0.2 s.
     """
     mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
@@ -77,14 +77,14 @@ def _embed(smiles, seed=0xC0FFEE):
     return None
 
 
-#: Embedding + MMFF cleanup + a full PEFF26 minimize costs a couple of seconds
+#: Embedding + MMFF cleanup + a full PMEFF26 minimize costs a couple of seconds
 #: per molecule, and most tests below want the same few geometries. Cache them
 #: so the suite pays for each molecule once instead of once per assertion.
 _GEOMETRY_CACHE = {}
 
 
 def _optimized_alkyne_angles(smiles):
-    """Return (avg C-C#C angle, mol, optimized coords) after a PEFF26 minimize."""
+    """Return (avg C-C#C angle, mol, optimized coords) after a PMEFF26 minimize."""
     if smiles in _GEOMETRY_CACHE:
         return _GEOMETRY_CACHE[smiles]
     result = _compute_alkyne_angles(smiles)

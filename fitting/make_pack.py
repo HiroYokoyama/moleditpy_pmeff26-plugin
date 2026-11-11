@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the GAMESS reference job pack for the PEFF26 fit.
+"""Build the GAMESS reference job pack for the PMEFF26 fit.
 
 Embeds every molecule of :mod:`fitting.dataset` with RDKit (fixed seed),
 writes one GAMESS input per job with inline coordinates and basis, and records the exact

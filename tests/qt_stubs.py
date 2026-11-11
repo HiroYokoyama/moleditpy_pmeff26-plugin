@@ -1,4 +1,4 @@
-"""Rich hand-built PySide6 stand-ins for driving the PEFF26 dialog modules.
+"""Rich hand-built PySide6 stand-ins for driving the PMEFF26 dialog modules.
 
 These are lightweight stub classes (not MagicMock-based) so that real branch
 logic in ``settings_dialog.py`` / ``geometry_override_dialog.py`` executes:

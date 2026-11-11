@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the whole PEFF26 reference calculation in one go.
+"""Run the whole PMEFF26 reference calculation in one go.
 
 Builds every GAMESS input, packs them, and submits ONE job to the compute host
 through the MoleditPy Job Manager local API (the Job Manager must be running
@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     job = client().submit(
         host=args.host,
-        name="peff26-ref-smoke" if args.smoke else "peff26-reference",
+        name="pmeff26-ref-smoke" if args.smoke else "pmeff26-reference",
         files=[str(out / "pack.tgz"), str(Path(__file__).with_name("run_pack.py"))],
         command="python3 run_pack.py pack.tgz",
         cpus_per_task=8,

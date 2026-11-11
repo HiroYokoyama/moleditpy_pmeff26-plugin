@@ -1,6 +1,6 @@
 """Metal-complex coordination-geometry benchmark.
 
-PEFF26's headline claim is that it does not deform metal centers — it places /
+PMEFF26's headline claim is that it does not deform metal centers — it places /
 keeps them in the right coordination geometry. The organic geometry benchmark
 (``test_geometry_benchmark.py``) never exercises that, so this file validates
 the metal geometry machinery directly on a set of textbook transition-metal
@@ -11,7 +11,7 @@ complexes spanning every supported coordination geometry:
   square-pyramidal).
 
 What is asserted is the *coordination geometry* (the L-M-L angle pattern), which
-is what PEFF26's targets actually control — not exact M-L bond lengths, which are
+is what PMEFF26's targets actually control — not exact M-L bond lengths, which are
 radius-derived and not fit to metal data. Two things are checked per complex:
 
 * **Recovery** — from a randomly perturbed start (0.12 A), the optimizer relaxes
@@ -23,7 +23,7 @@ radius-derived and not fit to metal data. Two things are checked per complex:
 
 A companion ``test_benchmark_is_non_vacuous`` confirms that with the metal
 targets switched off the recovery assertions fail — so the benchmark tests
-PEFF26's metal machinery, not generic optimization.
+PMEFF26's metal machinery, not generic optimization.
 
 Bonds are only checked for being finite, positive, and roughly equal among the
 symmetry-equivalent M-L bonds (the center does not collapse or fly apart).
@@ -37,7 +37,7 @@ from collections import Counter
 import numpy as np
 import pytest
 
-from peff26_plugin.forcefield import build_topology, optimize
+from pmeff26_plugin.forcefield import build_topology, optimize
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ def test_benchmark_is_non_vacuous():
     Guards against the whole benchmark silently passing on generic optimization:
     with the auto d-block targets switched off, a perturbed square-planar and a
     perturbed octahedral start relax to a *different* angle pattern, so the
-    recovery assertions genuinely test PEFF26's metal machinery.
+    recovery assertions genuinely test PMEFF26's metal machinery.
     """
     # PtCl4 without square-planar targets does not reach cis-90 / trans-180.
     _, _, coords, topo = _build(78, 17, _square_planar, 2.31, None, use_auto=False)

@@ -37,10 +37,10 @@ jobs:
           sudo apt-get install -y libegl1 libopengl0
 
       - name: Run tests
-        run: python -m pytest tests/ -v --cov=peff26_plugin --cov-report=term-missing
+        run: python -m pytest tests/ -v --cov=pmeff26_plugin --cov-report=term-missing
 
       - name: Lint
-        run: pylint peff26_plugin/ --fail-under=9.0
+        run: pylint pmeff26_plugin/ --fail-under=9.0
 
       - name: Real Qt threading and dialog checks
         env:

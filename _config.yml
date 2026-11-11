@@ -1,9 +1,9 @@
-title: PEFF26
+title: PMEFF26
 description: A universal molecular force field for MoleditPy.
-baseurl: /moleditpy_peff26-plugin
+baseurl: /moleditpy_pmeff26-plugin
 url: https://hiroyokoyama.github.io
 main_site_url: https://hiroyokoyama.github.io/python_molecular_editor
-repository: HiroYokoyama/moleditpy_peff26-plugin
+repository: HiroYokoyama/moleditpy_pmeff26-plugin
 markdown: kramdown
 kramdown:
   input: GFM

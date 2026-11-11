@@ -1,6 +1,6 @@
-"""PEFF26 settings dialog (PySide6).
+"""PMEFF26 settings dialog (PySide6).
 
-Opens a modal dialog with checkboxes for each PEFF26 physics option.
+Opens a modal dialog with checkboxes for each PMEFF26 physics option.
 The PySide6 import is guarded so this module can be imported in headless
 (test) environments without raising ImportError — callers check the
 return value of :func:`open_settings_dialog` for None.
@@ -17,7 +17,7 @@ def open_settings_dialog(
     defaults: Optional[dict] = None,
     on_open_geometry: Optional[Callable[[], None]] = None,
 ) -> Optional[dict]:
-    """Show the PEFF26 settings dialog on top of *parent*.
+    """Show the PMEFF26 settings dialog on top of *parent*.
 
     Returns the updated settings dict when the user clicks OK, or None if
     they cancel or if PySide6 is not available (headless environment).
@@ -43,13 +43,13 @@ def open_settings_dialog(
         return None
 
     dlg = QDialog(parent)  # type: ignore[arg-type]
-    dlg.setWindowTitle("PEFF26 Settings")
+    dlg.setWindowTitle("PMEFF26 Settings")
     dlg.setMinimumWidth(430)
     layout = QVBoxLayout(dlg)
     layout.setSpacing(2)
 
     intro = QLabel(
-        "<b>PEFF26</b> is a pre-DFT geometry-cleanup force field. "
+        "<b>PMEFF26</b> is a pre-DFT geometry-cleanup force field. "
         "Its goal is <i>initial structure preparation</i> — removing "
         "clashes, correcting bond lengths and angles, and giving the DFT "
         "optimizer a sensible starting point — not high-accuracy energetics."
@@ -150,7 +150,7 @@ def open_settings_dialog(
         geom_btn.clicked.connect(_go_geometry)
         geom_desc = QLabel(
             "Override the auto-detected geometry of individual metal centers. "
-            "Applied on the next Optimize 3D (PEFF26) and saved with the project."
+            "Applied on the next Optimize 3D (PMEFF26) and saved with the project."
         )
         geom_desc.setWordWrap(True)
         geom_desc.setContentsMargins(0, 2, 0, 0)

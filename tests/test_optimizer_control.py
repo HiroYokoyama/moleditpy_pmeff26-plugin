@@ -5,7 +5,7 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from peff26_plugin import forcefield as ff
+from pmeff26_plugin import forcefield as ff
 
 
 def test_progress_counts_across_optimizer_phases():

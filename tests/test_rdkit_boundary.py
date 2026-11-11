@@ -1,4 +1,4 @@
-"""Tests for the RDKit boundary of the PEFF26 engine."""
+"""Tests for the RDKit boundary of the PMEFF26 engine."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from peff26_plugin import forcefield as ff
+from pmeff26_plugin import forcefield as ff
 
 
 def _embed(smiles: str) -> Chem.Mol:
@@ -209,7 +209,7 @@ def test_compute_energy_polar_contraction_changes_energy():
 
 
 def test_handles_transition_metal_complex():
-    # Ferrocene-like iron center: PEFF26 must parameterize Fe without gaps.
+    # Ferrocene-like iron center: PMEFF26 must parameterize Fe without gaps.
     mol = Chem.AddHs(Chem.MolFromSmiles("[Fe]"))
     topo = ff.topology_from_rdkit(mol)
     # Fe is Z=26; its covalent radius must be a real, finite value.
