@@ -1,8 +1,9 @@
 name: Tests
 
-# CI is temporarily manual-only while the engine and parameters are being
-# built. Restore the push / pull_request triggers when the fit is in.
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 env:
