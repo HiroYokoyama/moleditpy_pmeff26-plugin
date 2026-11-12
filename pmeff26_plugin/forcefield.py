@@ -25,7 +25,7 @@ from .core import (  # noqa: F401  (re-exported)
     optimize,
     vibrational_analysis,
 )
-from .parameters import (  # noqa: F401  (re-exported)
+from .parameters import (  # noqa: F401  pylint: disable=unused-import  (re-exported)
     MissingParameterError,
     ParameterError,
     ParameterSet,
