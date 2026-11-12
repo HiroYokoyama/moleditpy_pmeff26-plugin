@@ -39,7 +39,7 @@ from scipy import sparse
 from scipy.optimize import least_squares, lsq_linear
 
 from pmeff26_plugin.assign import assign
-from pmeff26_plugin.core import _pi_term
+from pmeff26_plugin.core import LINEAR_THRESHOLD, _pi_term
 from pmeff26_plugin.core import (
     System,
     energy_and_gradient,
@@ -65,6 +65,8 @@ HARTREE_KCAL = 627.5095
 DEBYE_PER_EA = 4.80321
 W_GRAD = 20.0  # weight of gradient rows relative to Hessian rows
 RIDGE_TORSION = 0.05
+RIDGE_SB = 0.02
+SB_MAX = 250.0  # stretch-bend constants beyond this are not physical
 PI_BETA0, PI_DELTA0 = 50.0, 2.0  # starting resonance integral (kcal/mol), decay (1/A)
 
 
@@ -366,6 +368,103 @@ def fit_bonded(train: list, hessians: dict, prov: ParameterSet, classes: dict):
     return columns, solve_bonded(a_mat, b_vec, lower)
 
 
+# --- 2a. stretch-bend cross terms -------------------------------------------
+
+
+def _local_grad_hess(x, system, atoms, delta=1e-4):
+    """Gradient and Hessian of terms that involve only *atoms*."""
+    hess = np.zeros((x.size, x.size))
+    y = x.copy()
+    for atom in atoms:
+        for c in range(3):
+            keep = y[atom, c]
+            y[atom, c] = keep + delta
+            gp = energy_and_gradient(y, system)[1].ravel()
+            y[atom, c] = keep - delta
+            gm = energy_and_gradient(y, system)[1].ravel()
+            y[atom, c] = keep
+            hess[3 * atom + c] = (gp - gm) / (2.0 * delta)
+    return energy_and_gradient(x, system)[1].ravel(), 0.5 * (hess + hess.T)
+
+
+def stretch_bend_columns(spans: list, bonds: dict, angles: dict, n_rows: int):
+    """Basis columns of the stretch-bend constants at fixed r0 / theta0.
+
+    One column per (angle key, slot): slot 0 is the bond to the key's first
+    end type, slot 1 the bond to its second; equal end types share slot 0.
+    """
+    names: dict = {}
+    rows, cols, vals = [], [], []
+    for a, x, offset in spans:
+        s = a.system
+        r0_of = {}
+        for (i, j), key in zip(s.bond_idx, a.bond_keys):
+            if key in bonds:
+                r0_of[(i, j)] = r0_of[(j, i)] = bonds[key][0]
+        groups = defaultdict(list)
+        for (i, j, k), key in zip(s.angle_idx, a.angle_keys):
+            entry = angles.get(key)
+            if entry is None or entry[0] == "periodic" or math.radians(entry[0]) >= LINEAR_THRESHOLD:
+                continue
+            if (i, j) not in r0_of or (k, j) not in r0_of:
+                continue
+            base = ((i, j, k), (r0_of[(i, j)], r0_of[(k, j)]), math.radians(entry[0]))
+            ti, tk = a.types[i], a.types[k]
+            if ti == tk:
+                groups[(key, 0)].append(base + ((1.0, 1.0),))
+            else:
+                on_i, on_k = (1.0, 0.0), (0.0, 1.0)
+                groups[(key, 0)].append(base + (on_i if ti < tk else on_k,))
+                groups[(key, 1)].append(base + (on_k if ti < tk else on_i,))
+        tri = np.triu_indices(x.size)
+        for name, items in sorted(groups.items()):
+            idx = np.array([it[0] for it in items])
+            sub = _sub(s, sb_idx=idx, sb_r0=np.array([it[1] for it in items]),
+                       sb_t0=np.array([it[2] for it in items]),
+                       sb_k=np.array([it[3] for it in items]))
+            g, h = _local_grad_hess(x, sub, sorted(set(idx.ravel().tolist())))
+            vec = np.concatenate([W_GRAD * g, h[tri]])
+            nz = np.nonzero(np.abs(vec) > 1e-10)[0]
+            col = names.setdefault(name, len(names))
+            rows.extend(offset + nz)
+            cols.extend([col] * len(nz))
+            vals.extend(vec[nz])
+    return names, sparse.csr_matrix((vals, (rows, cols)), shape=(n_rows, len(names)))
+
+
+def fit_stretch_bend(a_mat, b_vec, lower, columns: dict, spans: list, sol, rounds: int = 2):
+    """Re-solve the bonded fit with stretch-bend columns added.
+
+    The cross term is linear in its constants only at fixed r0 / theta0, so
+    those are taken from the previous solution and the joint solve repeated.
+    Returns (solution of the original columns, table, dropped terms).
+    """
+    n_cols = a_mat.shape[1]
+    names, k_sb = {}, np.zeros(0)
+    for _ in range(rounds):
+        bonds, angles = tables_from_solution(columns, sol)[:2]
+        names, sb_mat = stretch_bend_columns(spans, bonds, angles, a_mat.shape[0])
+        if not names:
+            return sol, {}, []
+        n_sb = len(names)
+        ridge = sparse.hstack([sparse.csr_matrix((n_sb, n_cols)), RIDGE_SB * sparse.identity(n_sb)])
+        full = sparse.vstack([sparse.hstack([a_mat, sb_mat]), ridge]).tocsr()
+        both = solve_bonded(full, np.concatenate([b_vec, np.zeros(n_sb)]),
+                            np.concatenate([lower, np.full(n_sb, -np.inf)]))
+        sol, k_sb = both[:n_cols], both[n_cols:]
+    raw: dict = {}
+    for (key, slot), col in names.items():
+        raw.setdefault(key, [None, None])[slot] = float(k_sb[col])
+    table, dropped = {}, []
+    for key, (k0, k1) in raw.items():
+        k1 = k0 if k1 is None else k1
+        if max(abs(k0), abs(k1)) > SB_MAX:
+            dropped.append(f"stretch-bend {key} (k={k0:.0f}, {k1:.0f})")
+        else:
+            table[key] = [round(k0, 3), round(k1, 3)]
+    return sol, table, dropped
+
+
 # --- 2b. pi-electron term -----------------------------------------------------
 
 
@@ -654,7 +753,8 @@ def evaluate(items: list, hessians: dict, params: ParameterSet) -> dict:
             "bond_rmsd": rms(bond_err), "angle_rmsd": rms(angle_err), "freq_rmsd": rms(freq_err)}
 
 
-def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True):
+def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True,
+        use_sb: bool = True):
     """Return (parameter dict, report text)."""
     usable = [r for r in records if r["usable"]]
     probe = copy.deepcopy(skeleton)
@@ -683,8 +783,14 @@ def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True):
     classes = angle_classes(train, prov)
     columns, lower, a_mat, b_vec, spans = bonded_system(train, hessians, prov, classes)
     pi_fit = fit_pi(prov, a_mat, b_vec, spans) if use_pi else None
-    sol = solve_bonded(a_mat, b_vec - pi_fit["vector"] if pi_fit else b_vec, lower)
+    target = b_vec - pi_fit["vector"] if pi_fit else b_vec
+    sol = solve_bonded(a_mat, target, lower)
+    cross, cross_dropped = {}, []
+    if use_sb:
+        sol, cross, cross_dropped = fit_stretch_bend(a_mat, target, lower, columns, spans, sol)
     bonds, angles, torsions, impropers, dropped = tables_from_solution(columns, sol)
+    cross = {k: v for k, v in cross.items() if k in angles}
+    dropped += cross_dropped
 
     data = copy.deepcopy(skeleton)
     data.update(
@@ -692,6 +798,7 @@ def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True):
         reference=f"{LEVEL}; {len(train)} training molecules, {len(scans)} torsion scans",
         bci=bci, bonds=bonds, angles=angles, torsions=torsions, impropers=impropers,
     )
+    data["stretch_bend"] = cross
     data["pi"] = {"enabled": False, "bonds": {}}
     if pi_fit:
         table = {}
@@ -744,6 +851,8 @@ def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True):
                   f"(points with E_int < 5). Classes: {', '.join(vdw_stats['classes'])}."]
     else:
         lines += ["", "van der Waals: no dimer data yet; UFF values used unchanged."]
+    lines += ["", f"Stretch-bend cross terms: {len(cross)} angle classes."
+              if use_sb else "Stretch-bend cross terms: switched off."]
     if pi_fit:
         lines += ["", f"pi-electron term fitted on {pi_fit['molecules']} molecules: unexplained "
                   f"gradient/Hessian residual {pi_fit['before']:.3f} -> {pi_fit['after']:.3f} "
@@ -781,7 +890,8 @@ def main(argv: list[str] | None = None) -> int:
 
     skeleton = init_parameters.skeleton()
     argv = sys.argv[1:] if argv is None else argv
-    data, report = fit(records, hessians, skeleton, use_pi="--no-pi" not in argv)
+    data, report = fit(records, hessians, skeleton, use_pi="--no-pi" not in argv,
+                       use_sb="--no-sb" not in argv)
     level.PARAMETER_FILE.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
     (REF / "fit_report.md").write_text(report, encoding="utf-8", newline="\n")
     print(report)

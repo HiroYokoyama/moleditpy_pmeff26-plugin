@@ -87,6 +87,9 @@ class ParameterSet:
         self.angles: Dict[str, list] = data.get("angles", {})
         self.torsions: Dict[str, list] = data.get("torsions", {})
         self.impropers: Dict[str, float] = data.get("impropers", {})
+        # Optional cross term: angle key -> [k for the bond to the key's first
+        # end type, k for the bond to its second end type] (kcal/mol/A/rad).
+        self.stretch_bend: Dict[str, list] = data.get("stretch_bend", {})
         self.vdw: Dict[str, list] = data.get("vdw", {})
         self.bci: Dict[str, float] = data.get("bci", {})
         pi = data.get("pi", {})

@@ -5,6 +5,7 @@
     python -m fitting.build_parameters JOB_ID ...   # these Job Manager jobs
     python -m fitting.build_parameters --no-fetch   # only what is in reference/raw
     python -m fitting.build_parameters --no-pi      # fit without the pi-electron term
+    python -m fitting.build_parameters --no-sb      # fit without stretch-bend cross terms
 
 Downloads every finished result of the reference jobs (the jobs may still be
 running), extracts them into ``reference/reference_data.json``, fits the
@@ -32,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
         jobs = [ln.split()[0] for ln in JOBS_FILE.read_text().splitlines()
                 if ln.strip() and not ln.startswith("#")]
     collect.main(jobs if fetch else [])
-    return fit.main([a for a in argv if a == "--no-pi"])
+    return fit.main([a for a in argv if a in ("--no-pi", "--no-sb")])
 
 
 if __name__ == "__main__":

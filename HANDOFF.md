@@ -13,7 +13,7 @@ State on 2026-11-12. Read this first when picking the project up again.
 | Result extraction (`fitting/collect.py`) | Done, tested on real GAMESS output |
 | Fit (`fitting/fit.py`) | Done, tested on synthetic data and a 3-molecule real smoke set |
 | pi-electron term | Engine and fit done, tested on synthetic data; not yet run on real DFT data |
-| GitHub | Private repo `HiroYokoyama/moleditpy_pmeff26-plugin`; CI is manual-only |
+| GitHub | Public repo `HiroYokoyama/moleditpy_pmeff26-plugin`; CI is manual-only |
 
 ## What to do next, in order
 
@@ -66,8 +66,9 @@ set `PMEFF26_HOST` or pass `--host NAME`.
 | `python -m fitting.collect [JOB_ID ...]` | Download + extract only |
 | `python -m fitting.fit` | Fit only, from `reference/reference_data.json` |
 | `python -m fitting.fit --no-pi` | Same, with the pi term off (bonds keyed by formal order) |
+| `python -m fitting.fit --no-sb` | Same, without stretch-bend cross terms |
 | `python -m fitting.init_parameters --force` | Reset the parameter file to the unfitted skeleton |
-| `python -m pytest tests -q -n auto` | Tests (34 pass) |
+| `python -m pytest tests -q -n auto` | Tests (38 pass) |
 
 ## Another DFT level
 
@@ -104,9 +105,14 @@ the van der Waals values.
   file. The pi fit is the slow step (estimated tens of minutes on the full
   set). Systems with a half-filled degenerate pi level (cyclobutadiene) are
   not smooth and are not handled specially.
-- **No cross terms** (stretch-bend etc.). On the 3-molecule smoke fit the
-  frequency RMSD was 116 cm^-1 while geometry was 0.0007 A; expect geometry to
-  be much better than frequencies.
+- **Stretch-bend cross terms are fitted but unproven on real data.** The
+  engine has `(k1 (r1 - r1_0) + k2 (r2 - r2_0)) (theta - theta_0)` per
+  harmonic angle (table `stretch_bend`, optional: an angle without an entry
+  simply has no cross term). `fit.py` fits the constants by default, jointly
+  with the other bonded terms (`fit_stretch_bend`, two rounds). On synthetic
+  alkanes/water the constants are recovered and the held-out frequency error
+  halves at least. `--no-sb` switches them off for comparison. There are no
+  stretch-stretch or bend-bend terms.
 - **vdW refit is queued, not done.** The dimer set (`fitting/dimers.py`: 47
   pairs of 24 probes, 3 orientations x 6 separations, job `pmeff26-ref-dm`)
   gives counterpoise-corrected interaction energies; `fit.py` refits

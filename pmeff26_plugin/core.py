@@ -49,7 +49,7 @@ LINEAR_THRESHOLD = np.radians(175.0)
 # sqrt(kcal/mol/Angstrom^2/amu) -> cm^-1
 WAVENUMBER_FACTOR = 108.5913
 
-COMPONENTS = ("bond", "angle", "torsion", "improper", "vdw", "elec", "pi")
+COMPONENTS = ("bond", "angle", "cross", "torsion", "improper", "vdw", "elec", "pi")
 PI_TWIST_EPS = 0.05
 
 
@@ -70,6 +70,11 @@ class System:
     angle_k: np.ndarray = field(default_factory=lambda: _empty(0))
     # 0 = harmonic; n > 0 = periodic form (k/n^2)(1 - cos(n theta))
     angle_n: np.ndarray = field(default_factory=lambda: _empty(0, int))
+    # stretch-bend cross term: (k1 (r_ij - r1) + k2 (r_kj - r2)) (theta - t0)
+    sb_idx: np.ndarray = field(default_factory=lambda: _empty((0, 3), int))
+    sb_k: np.ndarray = field(default_factory=lambda: _empty((0, 2)))
+    sb_r0: np.ndarray = field(default_factory=lambda: _empty((0, 2)))
+    sb_t0: np.ndarray = field(default_factory=lambda: _empty(0))
     tors_idx: np.ndarray = field(default_factory=lambda: _empty((0, 4), int))
     tors_v: np.ndarray = field(default_factory=lambda: _empty(0))
     tors_n: np.ndarray = field(default_factory=lambda: _empty(0))
@@ -248,6 +253,27 @@ def energy_and_gradient(
         de_dcos = de_dcos[:, None]
         gi = de_dcos * dcos_i
         gk = de_dcos * dcos_k
+        np.add.at(grad, i, gi)
+        np.add.at(grad, k, gk)
+        np.add.at(grad, j, -(gi + gk))
+
+    if len(system.sb_idx):
+        i, j, k = (system.sb_idx[:, c] for c in range(3))
+        u = x[i] - x[j]
+        v = x[k] - x[j]
+        ru = np.maximum(np.linalg.norm(u, axis=1), 1e-10)
+        rv = np.maximum(np.linalg.norm(v, axis=1), 1e-10)
+        cos_t = np.clip(np.einsum("ij,ij->i", u, v) / (ru * rv), -1.0, 1.0)
+        dcos_i = (v / (ru * rv)[:, None]) - (cos_t / ru**2)[:, None] * u
+        dcos_k = (u / (ru * rv)[:, None]) - (cos_t / rv**2)[:, None] * v
+        sin_t = np.maximum(np.sqrt(1.0 - cos_t * cos_t), 1e-6)
+        dt = np.arccos(cos_t) - system.sb_t0
+        k1, k2 = system.sb_k[:, 0], system.sb_k[:, 1]
+        stretch = k1 * (ru - system.sb_r0[:, 0]) + k2 * (rv - system.sb_r0[:, 1])
+        parts["cross"] = float(np.sum(stretch * dt))
+        dth = (-stretch / sin_t)[:, None]
+        gi = dth * dcos_i + (dt * k1 / ru)[:, None] * u
+        gk = dth * dcos_k + (dt * k2 / rv)[:, None] * v
         np.add.at(grad, i, gi)
         np.add.at(grad, k, gk)
         np.add.at(grad, j, -(gi + gk))

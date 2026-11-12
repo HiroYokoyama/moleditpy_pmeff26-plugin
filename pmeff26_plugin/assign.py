@@ -11,6 +11,8 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
+from .core import LINEAR_THRESHOLD  # noqa: E402
+
 import numpy as np
 
 from .core import COULOMB, System
@@ -110,6 +112,8 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
 
     charges = np.array([float(a.GetFormalCharge()) for a in mol.GetAtoms()])
     bond_idx, bond_r0, bond_k, bond_keys = [], [], [], []
+    bond_r0_of: Dict[Tuple[int, int], float] = {}
+    sb_idx, sb_k, sb_r0, sb_t0 = [], [], [], []
     pi_base = [params.pi_electrons(t) for t in types]
     # A pi-type atom with no pi-type neighbour (sulfoxide O, ...) has nothing
     # to conjugate with and stays out of the pi system.
@@ -143,6 +147,7 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
             missing.append(f"bond {key}")
             entry = (1.0, 0.0)
         bond_idx.append((i, j))
+        bond_r0_of[(i, j)] = bond_r0_of[(j, i)] = entry[0]
         bond_r0.append(entry[0])
         bond_k.append(entry[1])
         bond_keys.append(key)
@@ -174,6 +179,13 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
                     angle_t0.append(math.radians(entry[0]))
                     angle_n.append(0)
                     angle_k.append(entry[1])
+                    cross = params.stretch_bend.get(key)
+                    if cross is not None and math.radians(entry[0]) < LINEAR_THRESHOLD:
+                        first, second = cross if types[i] <= types[k] else (cross[1], cross[0])
+                        sb_idx.append((i, j, k))
+                        sb_k.append((first, second))
+                        sb_r0.append((bond_r0_of[(i, j)], bond_r0_of[(k, j)]))
+                        sb_t0.append(math.radians(entry[0]))
                 angle_keys.append(key)
 
     tors_idx, tors_v, tors_n, tors_g, tors_imp, torsion_keys = [], [], [], [], [], []
@@ -277,6 +289,10 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
         angle_t0=arr(angle_t0),
         angle_k=arr(angle_k),
         angle_n=arr(angle_n, None, int),
+        sb_idx=arr(sb_idx, (-1, 3), int),
+        sb_k=arr(sb_k, (-1, 2)),
+        sb_r0=arr(sb_r0, (-1, 2)),
+        sb_t0=arr(sb_t0),
         tors_idx=arr(tors_idx, (-1, 4), int),
         tors_v=arr(tors_v),
         tors_n=arr(tors_n),
