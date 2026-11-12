@@ -99,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--force", action="store_true", help="start now, ahead of the host queue (small checks only)")
     ap.add_argument("--functional", default="wB97X-D", help="GAMESS DFTTYP (use with PMEFF26_LEVEL)")
     ap.add_argument("--d3bj", action="store_true", help="add Grimme D3(BJ) dispersion")
-    ap.add_argument("--only", nargs="*", help="sets to run: tr va sc mt (default all)")
+    ap.add_argument("--only", nargs="*", help="sets to run: tr va sc mt dm (default all)")
     ap.add_argument("--retry", metavar="JOB_ID",
                     help="resubmit only the jobs that FAILED in this earlier run")
     args = ap.parse_args(argv)
