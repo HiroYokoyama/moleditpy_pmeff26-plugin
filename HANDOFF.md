@@ -123,9 +123,9 @@ the van der Waals values.
 - **Counterpoise uses wB97X, not wB97X-D.** GAMESS crashes on ghost atoms in
   its empirical-dispersion code and ignores `DC=.FALSE.` for wB97X-D, so the
   BSSE correction is computed with the parent functional.
-- **Privacy.** Downloaded outputs are scrubbed of the account and host name
-  before commit. Commit `77854f9` in the history holds unscrubbed outputs; the
-  owner has accepted that (host name and home path may be public).
+- **Privacy.** GAMESS outputs are committed exactly as downloaded; they
+  contain the compute host name and the home path, which the owner has
+  accepted as public. (Outputs fetched before 2026-11-12 were scrubbed.)
 - **Torsion fits use DFT scan geometries** with force-field single points, not
   force-field-relaxed scans.
 - **Metal scope.** Neutral closed-shell species only; no pi-complexes, no

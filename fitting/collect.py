@@ -78,32 +78,8 @@ def fetch(job_id: str) -> int:
             f"/hosts/{host}/download",
             {"paths": [f"{remote}/{n}" for n in chunk], "into": str(RAW), "overwrite": True},
         )
-    for name in want:  # the outputs are committed: keep account/host names out
-        if (RAW / name).exists():
-            scrub_file(RAW / name, (job.get("host_name", ""),))
     print(f"{job_id}: {len(names)} remote result files, {len(want)} downloaded")
     return len(want)
-
-
-def scrub(text: str, host_names: tuple = ()) -> str:
-    """Remove the account name, home path and host name from a GAMESS output."""
-    users = set(re.findall(r"/home/([^/\s]+)", text))
-    text = re.sub(r"/home/[^/\s]+", "/home/user", text)
-    for name in sorted(users | set(host_names), key=len, reverse=True):
-        if name and name != "user":
-            text = re.sub(re.escape(name), "redacted", text, flags=re.IGNORECASE)
-    return text
-
-
-def scrub_file(path: Path, host_names: tuple = ()) -> None:
-    if path.suffix != ".gz":
-        return
-    with gzip.open(path, "rt", errors="replace") as fh:
-        text = fh.read()
-    clean = scrub(text, host_names)
-    if clean != text:
-        with gzip.open(path, "wt") as fh:
-            fh.write(clean)
 
 
 def load_manifest() -> dict:
