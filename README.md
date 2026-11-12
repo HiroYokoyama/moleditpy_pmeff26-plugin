@@ -39,6 +39,37 @@ calculated. Ions, radicals, open-shell metal centres, pi-complexes and
 5-coordinate centres are refused. Square-planar and octahedral centres use a
 periodic angle term with minima at 90 and 180 degrees.
 
+## Where PMEFF26 stands
+
+PMEFF26 is a classical force field with a fixed functional form. It is meant
+to sit between the generic force fields (UFF, MMFF94) and DFT: geometries and
+conformer energies closer to DFT than a generic force field gives, in a
+fraction of a second on a CPU. It is a tool for preparing DFT work (starting
+geometries, conformer pre-screening), not a replacement for DFT.
+
+It is **not** a machine-learned potential and does not aim at that accuracy.
+A machine-learned potential learns the potential surface itself with a very
+large number of parameters; PMEFF26 only places DFT-fitted constants into a
+set of fixed expressions, and what those expressions cannot describe stays
+wrong however much data is added.
+
+| | PMEFF26 | Machine-learned potentials |
+|---|---|---|
+| Equilibrium geometries | Comparable accuracy is the goal | Good |
+| Vibrational frequencies | Helped by the stretch-bend term; expected to stay behind | Good |
+| Conformer energies | Usable within the fitted torsion classes | Good |
+| Bond breaking, reactions, transition states | Not possible (harmonic bonds) | Possible inside the training domain |
+| Polarization, charge transfer | Not possible (fixed charges) | Possible in some models |
+| Chemistry outside the parameter set | Refused | Runs, with unknown error |
+| Speed on a CPU | Fast | Slow; normally needs a GPU |
+| Dependencies | NumPy and RDKit | A deep-learning framework and model weights |
+
+Compared with a generic force field, PMEFF26 adds the variational π term,
+stretch-bend coupling, parameters fitted to one consistent DFT level, and a
+refusal instead of a guess when a parameter is missing. The comparison above
+describes the design; measured accuracy will be reported here once the fit
+has run on the reference data.
+
 ## What it adds to MoleditPy
 
 | Feature | Where |
