@@ -2,3 +2,4 @@
 4f16990769e4 main run: train + validate + scans
 c67e6569e89f metal set
 faa0c635e664 pmeff26-ref-retry
+933992e9982d pmeff26-ref-dm

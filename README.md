@@ -53,9 +53,10 @@ keeps the original geometry.
 
 ## Known limitations
 
-- The Lennard-Jones parameters are the per-element UFF values and are not
-  refit: the reference set contains no intermolecular data. They are
-  hard-coded from RDKit's UFF table (`Code/ForceField/UFF/Params.cpp`).
+- The Lennard-Jones parameters start from the per-element UFF values
+  (hard-coded from RDKit's UFF table, `Code/ForceField/UFF/Params.cpp`). The
+  main-group elements and polar hydrogen are refit to counterpoise-corrected
+  DFT dimer curves once that reference set has finished; metals keep UFF.
 - Dispersion is only the r⁻⁶ part of that Lennard-Jones term; there is no
   separate D3-style correction.
 - The metal set has no held-out validation molecules yet.

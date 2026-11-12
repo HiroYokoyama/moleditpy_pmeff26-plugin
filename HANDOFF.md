@@ -21,8 +21,10 @@ Everything runs from the repo root with the MoleditPy Job Manager open and its
 Local API switched on. Submitting commands need the Job Manager host name:
 set `PMEFF26_HOST` or pass `--host NAME`.
 
-1. **Check progress** of the two reference jobs in the Job Manager
-   (`pmeff26-reference`, `pmeff26-ref-mt`). Their ids are in `fitting/jobs.txt`.
+1. **Check progress** of the reference jobs in the Job Manager
+   (`pmeff26-reference`, `pmeff26-ref-mt`, `pmeff26-ref-retry`,
+   `pmeff26-ref-dm`). Their ids are in `fitting/jobs.txt`; the host runs them
+   one after another.
 
 2. **Retry the fast failures** once the main job has finished. GAMESS rejected
    exactly linear/planar starting geometries; the inputs are fixed now:
@@ -57,13 +59,14 @@ set `PMEFF26_HOST` or pass `--host NAME`.
 | Command | What it does |
 |---|---|
 | `python -m fitting.run_all` | Build all GAMESS inputs and submit them as one job |
-| `python -m fitting.run_all --only mt` | Submit one set (`tr`, `va`, `sc`, `mt`) |
+| `python -m fitting.run_all --only mt` | Submit one set (`tr`, `va`, `sc`, `mt`, `dm`) |
+| `python -m fitting.run_all --ids ID ... --force` | Submit chosen calculations only; `--force` jumps the host queue |
 | `python -m fitting.run_all --retry JOB_ID` | Resubmit only the jobs that failed |
 | `python -m fitting.build_parameters` | Download + extract + fit, in one go |
 | `python -m fitting.collect [JOB_ID ...]` | Download + extract only |
 | `python -m fitting.fit` | Fit only, from `reference/reference_data.json` |
 | `python -m fitting.init_parameters --force` | Reset the parameter file to the unfitted skeleton |
-| `python -m pytest tests -q -n auto` | Tests (29 pass) |
+| `python -m pytest tests -q -n auto` | Tests (30 pass) |
 
 ## Another DFT level
 
@@ -80,9 +83,8 @@ PMEFF26_LEVEL=b3lyp python -m fitting.build_parameters
 
 In PowerShell set it first with `$env:PMEFF26_LEVEL = "b3lyp"`. The plugin only
 loads `pmeff26.json`; copy a level's file over it to adopt that level. This
-refits charges and bonded terms. The van der Waals values are not fitted at
-any level (that needs intermolecular reference calculations, which are not in
-the set).
+refits charges, bonded terms and, when the `dm` set has run at that level,
+the van der Waals values.
 
 ## Known gaps and risks
 
@@ -97,9 +99,19 @@ the set).
 - **No cross terms** (stretch-bend etc.). On the 3-molecule smoke fit the
   frequency RMSD was 116 cm^-1 while geometry was 0.0007 A; expect geometry to
   be much better than frequencies.
-- **vdW is not fitted** (UFF values, hard-coded from RDKit's table) and there
-  is no intermolecular reference data. Dispersion is only the r^-6 part of the
-  Lennard-Jones term.
+- **vdW refit is queued, not done.** The dimer set (`fitting/dimers.py`: 47
+  pairs of 24 probes, 3 orientations x 6 separations, job `pmeff26-ref-dm`)
+  gives counterpoise-corrected interaction energies; `fit.py` refits
+  (rmin/2, eps) per element plus polar hydrogen (`hx`) to them, restrained to
+  the UFF start values. Metals and anything without dimer data keep UFF.
+  Verified so far on one water-dimer point only (-0.96 kcal/mol, BSSE 0.41).
+  Dispersion is only the r^-6 part of the Lennard-Jones term.
+- **Counterpoise uses wB97X, not wB97X-D.** GAMESS crashes on ghost atoms in
+  its empirical-dispersion code and ignores `DC=.FALSE.` for wB97X-D, so the
+  BSSE correction is computed with the parent functional.
+- **Privacy.** Downloaded outputs are scrubbed of the account and host name
+  before commit, but commit `77854f9` in the history still holds unscrubbed
+  outputs. Rewrite history before making the repo public.
 - **Torsion fits use DFT scan geometries** with force-field single points, not
   force-field-relaxed scans.
 - **Metal scope.** Neutral closed-shell species only; no pi-complexes, no
@@ -119,7 +131,7 @@ pmeff26_plugin/        plugin package (what gets released)
   parameters.py        parameter-file loader, key formats, errors
   parameters/pmeff26.json   the parameter file
 fitting/               reference-data and fitting tools (not released)
-  dataset.py           molecule sets: TRAIN, VALIDATE, SCANS, METAL
+  dataset.py           molecule sets: TRAIN, VALIDATE, SCANS, METAL;  dimers.py  vdW dimer set
   make_pack.py         GAMESS inputs;  run_pack.py  remote driver
   run_all.py           submit;  collect.py  extract;  fit.py  fit
   build_parameters.py  collect + fit in one command
