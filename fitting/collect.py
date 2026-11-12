@@ -65,7 +65,7 @@ def fetch(job_id: str) -> int:
     done_there = {job_of(n) for n in names if n.endswith(".done")}
     want = [
         n for n in names
-        if n.endswith((".gz", ".json", ".done", ".failed"))
+        if n.endswith((".gz", ".json", ".done", ".failed", ".energy"))
         and job_of(n) not in done_here
         and (job_of(n) in done_there or not (RAW / n).exists())
     ]
@@ -217,6 +217,25 @@ def collect() -> tuple[list, dict]:
     records, hessians = [], {}
     for job_id, rec in sorted(manifest.items()):
         entry = {k: rec[k] for k in ("id", "kind", "smiles", "molblock", "n_atoms")}
+        if rec["kind"] == "dimer":
+            points = []
+            mono = [RAW / f"{job_id}_m{s}.energy" for s in ("a", "a0", "b", "b0")]
+            if not all(p.exists() for p in mono):
+                continue
+            m_a, m_a0, m_b, m_b0 = (float(p.read_text().split()[0]) for p in mono)
+            for pt in rec["points"]:
+                parts = [RAW / f"{pt['tag']}_{s}.energy" for s in ("ab", "a", "b")]
+                if all(p.exists() for p in parts):
+                    e_ab, e_a, e_b = (float(p.read_text().split()[0]) for p in parts)
+                    points.append({"scale": pt["scale"], "coords": pt["coords"],
+                                   # raw interaction energy + counterpoise correction
+                                   "e_int": ((e_ab - m_a - m_b) + (m_a0 - e_a) + (m_b0 - e_b))
+                                   * HARTREE_KCAL})
+            if points:
+                entry.update(n_a=rec["n_a"], points=points, usable=len(points) >= 3,
+                             reason="" if len(points) >= 3 else "too few dimer points")
+                records.append(entry)
+            continue
         scan_path = RAW / f"{job_id}.scan.json"
         out_path = RAW / f"{job_id}.out.gz"
         if rec["kind"] == "scan":

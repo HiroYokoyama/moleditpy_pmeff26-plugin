@@ -178,7 +178,7 @@ def record(job_id: str, kind: str, smiles: str, mol: Chem.Mol) -> dict:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--only", nargs="*", default=["tr", "va", "sc", "mt"])
+    ap.add_argument("--only", nargs="*", default=["tr", "va", "sc", "mt", "dm"])
     ap.add_argument("--limit", type=int, default=0, help="first N of each set")
     ap.add_argument("--ids", nargs="*", default=None, help="keep only these job ids")
     ap.add_argument("--functional", default="wB97X-D", help="GAMESS DFTTYP")
@@ -246,16 +246,80 @@ def main(argv: list[str] | None = None) -> int:
         rec.update(label=label, dihedral=[i, j, k, l], n_points=npts)
         manifest.append(rec)
 
+    if "dm" in args.only:
+        from . import dimers
+
+        for n, (smi_a, smi_b) in enumerate(dimers.pairs(), 1):
+            pid = f"dm_{n:03d}"
+            try:
+                mol_a, mol_b = build_mol(smi_a), build_mol(smi_b)
+            except ValueError as exc:
+                problems.append(f"{pid}: {exc}")
+                continue
+            n_a, n_tot = mol_a.GetNumAtoms(), mol_a.GetNumAtoms() + mol_b.GetNumAtoms()
+            points, calcs, combo = [], [], None
+            for o, d, xa, xb in dimers.dimer_geometries(mol_a, mol_b, n):
+                combo = dimers.combined_mol(mol_a, mol_b, xa, xb)
+                symbols = [a.GetSymbol() for a in combo.GetAtoms()]
+                numbers = [a.GetAtomicNum() for a in combo.GetAtoms()]
+                coords = [tuple(map(float, row)) for row in combo.GetConformer().GetPositions()]
+                tag = f"{pid}_o{o}_d{d}"
+                for suffix, ghosts in (
+                    ("ab", frozenset()),
+                    ("a", frozenset(range(n_a, n_tot))),
+                    ("b", frozenset(range(n_a))),
+                ):
+                    # GAMESS's empirical-dispersion code cannot handle ghost
+                    # atoms, so ghost runs switch it off; the monomer's own
+                    # dispersion energy is added back from the _m/_m0 runs.
+                    text = gamess.gamess_input(
+                        f"{tag}_{suffix}", symbols, numbers, coords, hessian=False,
+                        single_point=True, ghosts=ghosts, dispersion_off=bool(ghosts),
+                        **FUNCTIONAL,
+                    )
+                    (inp_dir / f"{tag}_{suffix}.inp").write_text(
+                        text, encoding="ascii", newline=chr(10)
+                    )
+                    calcs.append(f"{tag}_{suffix}")
+                points.append({"tag": tag, "scale": dimers.SCALES[d], "coords": coords})
+                if o == 0 and d == 0:  # rigid monomers: one geometry each is enough
+                    for which, sel in (("a", range(n_a)), ("b", range(n_a, n_tot))):
+                        for off in (False, True):
+                            name = f"{pid}_m{which}{'0' if off else ''}"
+                            text = gamess.gamess_input(
+                                name, [symbols[i] for i in sel], [numbers[i] for i in sel],
+                                [coords[i] for i in sel], hessian=False, single_point=True,
+                                dispersion_off=off, **FUNCTIONAL,
+                            )
+                            (inp_dir / f"{name}.inp").write_text(
+                                text, encoding="ascii", newline=chr(10)
+                            )
+                            calcs.append(name)
+            manifest.append({
+                "id": pid, "kind": "dimer", "smiles": f"{smi_a}.{smi_b}",
+                "molblock": Chem.MolToMolBlock(combo), "n_atoms": n_tot, "n_a": n_a,
+                "n_heavy": n_heavy(combo), "nprocs": 2, "points": points, "calcs": calcs,
+            })
+
     if args.ids is not None:
         wanted = set(args.ids)
-        manifest = [r for r in manifest if r["id"] in wanted]
+        kept = []
+        for rec in manifest:
+            if "calcs" in rec:
+                rec["calcs"] = [c for c in rec["calcs"] if c in wanted]
+                if rec["calcs"]:
+                    kept.append(rec)
+            elif rec["id"] in wanted:
+                kept.append(rec)
+        manifest = kept
         for path in list(inp_dir.iterdir()):
             if path.stem not in wanted:
                 path.unlink()
     # Small jobs first so data accrues early; nprocs groups stay together.
     manifest.sort(key=lambda r: (r["nprocs"], r["kind"] == "scan", r["n_atoms"]))
     for nprocs in (2, 4):
-        ids = [r["id"] for r in manifest if r["nprocs"] == nprocs]
+        ids = [c for r in manifest if r["nprocs"] == nprocs
+               for c in r.get("calcs", [r["id"]])]
         (args.out / f"order_np{nprocs}.txt").write_text(
             "".join(f"{x}\n" for x in ids), encoding="ascii", newline="\n"
         )

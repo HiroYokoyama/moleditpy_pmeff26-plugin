@@ -25,6 +25,8 @@ OUT = Path(__file__).resolve().parents[1] / "pmeff26_plugin" / "parameters" / "p
 # torsions around their bonds; "planar" 3-coordinate types need an improper.
 ATOM_TYPES = [
     ("h", "[#1]", "H", {}),
+    # Polar hydrogen: its own van der Waals class (hydrogen bonds).
+    ("hx", "[#1][#7,#8,#9]", "H", {}),
     ("b2", "[#5X3]", "B", {"planar": True, "pi_electrons": 0, "pi_alpha": 0.0}),
     ("b4", "[#5X4]", "B", {}),
     ("c3", "[#6X4]", "C", {}),

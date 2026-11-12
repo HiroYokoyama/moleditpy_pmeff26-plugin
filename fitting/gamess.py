@@ -29,8 +29,13 @@ def gamess_input(
     d3bj: bool = False,
     single_point: bool = False,
     ghosts: frozenset = frozenset(),
+    dispersion_off: bool = False,
 ) -> str:
     """Return a GAMESS optimization input (optionally + Hessian, or constrained)."""
+    if dispersion_off and functional.upper() == "WB97X-D":
+        # GAMESS cannot switch the -D term of wB97X-D off (and its dispersion
+        # code crashes on ghost atoms): use the dispersion-free wB97X instead.
+        functional = "wB97X"
     use_ecp = any(_BASIS[s]["ecp"] and n not in ghosts for n, s in enumerate(symbols))
     n = len(symbols)
     contrl = [
@@ -45,7 +50,9 @@ def gamess_input(
     lines = contrl + [
         " $SYSTEM MWORDS=300 $END",
         " $SCF DIRSCF=.TRUE. NCONV=7 $END",
-        " $DFT NRAD=99 NLEB=590" + (" DC=.TRUE. IDCVER=4" if d3bj else "") + " $END",
+        " $DFT NRAD=99 NLEB=590"
+        + ("" if dispersion_off else " DC=.TRUE. IDCVER=4" if d3bj else "")
+        + " $END",
     ]
     if single_point:
         pass

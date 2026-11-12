@@ -36,7 +36,7 @@ from pathlib import Path
 
 import numpy as np
 from scipy import sparse
-from scipy.optimize import lsq_linear
+from scipy.optimize import least_squares, lsq_linear
 
 from pmeff26_plugin.assign import assign
 from pmeff26_plugin.core import (
@@ -140,6 +140,79 @@ def fit_charges(train: list, prov: ParameterSet) -> dict:
     sol = np.linalg.lstsq(a_mat, b_vec, rcond=None)[0]
     used = np.abs(np.vstack(rows)).sum(axis=0) > 0
     return {k: round(float(v), 5) for k, v, u in zip(keys, sol, used) if u}
+
+
+# --- 1b. van der Waals --------------------------------------------------------
+
+
+def vdw_class(type_name: str, params: ParameterSet) -> str:
+    """Types sharing one Lennard-Jones pair: the element, or polar hydrogen."""
+    return "hx" if type_name == "hx" else params.type_info[type_name]["element"]
+
+
+def fit_vdw(dimers: list, data: dict):
+    """Refit Lennard-Jones (rmin/2, eps) per class to the dimer curves.
+
+    Charges are held at the fitted bond-charge increments. Returns the RMSE
+    (kcal/mol, over points with E_int < 5) before and after, and the classes
+    that were refitted; classes without dimer data keep their UFF values.
+    """
+    from rdkit import Chem
+
+    params = ParameterSet(data)
+    points = []  # (class index i, class index j, r, coulomb, e_ref)
+    names: dict = {}
+    for rec in dimers:
+        mol = Chem.MolFromMolBlock(rec["molblock"], removeHs=False)
+        a = assign(mol, params, allow_missing=True)
+        cls = [names.setdefault(vdw_class(t, params), len(names)) for t in a.types]
+        n_a = rec["n_a"]
+        ia, ib = np.meshgrid(np.arange(n_a), np.arange(n_a, len(cls)), indexing="ij")
+        ia, ib = ia.ravel(), ib.ravel()
+        ci, cj = np.array(cls)[ia], np.array(cls)[ib]
+        qq = 332.0637 * a.charges[ia] * a.charges[ib]
+        for pt in rec["points"]:
+            x = np.array(pt["coords"])
+            r = np.linalg.norm(x[ia] - x[ib], axis=1)
+            points.append((ci, cj, r, float(np.sum(qq / r)), pt["e_int"]))
+    if not points:
+        return None
+    classes = sorted(names, key=names.get)
+    first_type = {}
+    for t in params.type_info:
+        first_type.setdefault(vdw_class(t, params), t)
+    start = np.array([params.vdw[first_type[c]] for c in classes])  # (rmin/2, eps)
+    x0 = np.concatenate([start[:, 0], np.log(start[:, 1])])
+    e_ref = np.array([p[4] for p in points])
+    weight = 1.0 / np.sqrt(1.0 + np.maximum(e_ref, 0.0) ** 2)  # soften the wall
+    n = len(classes)
+
+    def model(v):
+        rm, eps = v[:n], np.exp(v[n:])
+        out = np.empty(len(points))
+        for k, (ci, cj, r, coul, _e) in enumerate(points):
+            s6 = ((rm[ci] + rm[cj]) / r) ** 6
+            out[k] = np.sum(np.sqrt(eps[ci] * eps[cj]) * (s6 * s6 - 2.0 * s6)) + coul
+        return out
+
+    def residual(v):
+        restraint = np.concatenate([0.3 * (v[:n] - x0[:n]), 0.05 * (v[n:] - x0[n:])])
+        return np.concatenate([weight * (model(v) - e_ref), restraint])
+
+    lower = np.concatenate([np.full(n, 0.4), np.full(n, math.log(1e-4))])
+    upper = np.concatenate([np.full(n, 2.8), np.full(n, math.log(2.0))])
+    sol = least_squares(residual, x0, bounds=(lower, upper))
+    low = e_ref < 5.0
+
+    def rmse(v):
+        return float(np.sqrt(np.mean((model(v) - e_ref)[low] ** 2))) if low.any() else float("nan")
+
+    fitted = {c: [round(float(sol.x[k]), 4), round(float(math.exp(sol.x[n + k])), 5)]
+              for k, c in enumerate(classes)}
+    for t in params.type_info:
+        if vdw_class(t, params) in fitted:
+            data["vdw"][t] = fitted[vdw_class(t, params)]
+    return {"before": rmse(x0), "after": rmse(sol.x), "classes": classes, "points": len(points)}
 
 
 # --- 2. bonded terms --------------------------------------------------------
@@ -444,12 +517,14 @@ def fit(records: list, hessians: dict, skeleton: dict):
     train = [(r, mol_of(r)) for r in usable if r["kind"] == "train"]
     valid = [(r, mol_of(r)) for r in usable if r["kind"] == "validate"]
     scans = [r for r in usable if r["kind"] == "scan"]
+    dimers = [r for r in usable if r["kind"] == "dimer"]
     if not train:
         raise SystemExit("no usable training molecules in the reference data")
 
     prov = provisional(skeleton, [m for _r, m in train])
     bci = fit_charges(train, prov)
     prov.data["bci"] = {k: bci.get(k, 0.0) for k in prov.bci}
+    vdw_stats = fit_vdw(dimers, prov.data)  # updates prov.data["vdw"] in place
     prov = ParameterSet(prov.data)
     classes = angle_classes(train, prov)
     columns, sol = fit_bonded(train, hessians, prov, classes)
@@ -463,6 +538,13 @@ def fit(records: list, hessians: dict, skeleton: dict):
     )
     data["pi"] = {"enabled": False, "bonds": {}}
     data["increments"] = {"types": {}, "bonds": {}}
+    data["vdw"] = copy.deepcopy(prov.data["vdw"])
+    if vdw_stats:
+        data["vdw_source"] = (
+            "Lennard-Jones refit to counterpoise-corrected DFT dimer curves for: "
+            + ", ".join(vdw_stats["classes"])
+            + "; all other elements keep the UFF values (RDKit Params.cpp)"
+        )
     scan_rmse = fit_scans(scans, data)
     inc_rmse = fit_increments(train, data)
 
@@ -488,6 +570,13 @@ def fit(records: list, hessians: dict, skeleton: dict):
               "The validation row is the honest accuracy figure: those molecules were not fitted.", ""]
     if inc_rmse is not None:
         lines.append(f"DFT-referenced energy increments: training RMSE {inc_rmse:.2f} kcal/mol.")
+    if vdw_stats:
+        lines += ["", f"van der Waals refit on {vdw_stats['points']} dimer points "
+                  f"({len(dimers)} pairs): interaction-energy RMSE "
+                  f"{vdw_stats['before']:.2f} -> {vdw_stats['after']:.2f} kcal/mol "
+                  f"(points with E_int < 5). Classes: {', '.join(vdw_stats['classes'])}."]
+    else:
+        lines += ["", "van der Waals: no dimer data yet; UFF values used unchanged."]
     if scan_rmse:
         lines += ["", "## Torsion scan fit (RMSE, kcal/mol)", ""]
         lines += [f"- `{k}`: {v:.2f}" for k, v in sorted(scan_rmse.items())]

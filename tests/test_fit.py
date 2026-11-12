@@ -21,10 +21,10 @@ from pmeff26_plugin.core import energy_and_gradient, hessian, optimize  # noqa: 
 from pmeff26_plugin.parameters import ParameterSet  # noqa: E402
 
 TRUTH = {
-    "bci": {"c3-h": -0.05, "h-ow": 0.40},
-    "bonds": {"c3-c3": [1.53, 620.0], "c3-h": [1.093, 680.0], "h-ow": [0.96, 1100.0]},
+    "bci": {"c3-h": -0.05, "hx-ow": 0.40},
+    "bonds": {"c3-c3": [1.53, 620.0], "c3-h": [1.093, 680.0], "hx-ow": [0.96, 1100.0]},
     "angles": {"h|c3|h": [107.8, 70.0], "c3|c3|h": [110.7, 90.0],
-               "c3|c3|c3": [112.0, 110.0], "h|ow|h": [104.5, 100.0]},
+               "c3|c3|c3": [112.0, 110.0], "hx|ow|hx": [104.5, 100.0]},
     "torsions": {"*|c3-c3|*": [[3, 2.9, 0.0]]},
 }
 
@@ -69,7 +69,7 @@ def test_fit_recovers_the_generating_parameters(synthetic):
     three_fold = [t for t in data["torsions"]["*|c3-c3|*"] if t[0] == 3][0]
     assert three_fold[1] == pytest.approx(2.9, rel=0.15) and three_fold[2] == 0.0
     assert data["bci"]["c3-h"] == pytest.approx(-0.05, abs=5e-3)
-    assert data["bci"]["h-ow"] == pytest.approx(0.40, abs=5e-3)
+    assert data["bci"]["hx-ow"] == pytest.approx(0.40, abs=5e-3)
     stats = data["fit_statistics"]
     assert stats["train"]["bond_rmsd"] < 2e-3 and stats["train"]["angle_rmsd"] < 0.3
     # The held-out molecule (pentane) was not fitted and must still be accurate.
@@ -91,3 +91,44 @@ def test_fitted_file_refuses_what_the_data_did_not_cover(synthetic):
     with pytest.raises(MissingParameterError):
         assign(mol, ParameterSet(data))
     assert energy_and_gradient  # imported for parity with the engine tests
+
+
+def test_vdw_fit_recovers_lennard_jones_from_dimer_curves():
+    """Dimer curves generated with known LJ values must be recovered from UFF starts."""
+    from rdkit import Chem
+
+    from fitting import dimers
+
+    true = {"C": [2.05, 0.070], "H": [1.30, 0.020]}
+    truth = skeleton()
+    for t, info in ((e["type"], e) for e in truth["atom_types"]):
+        if info["element"] in true and t != "hx":
+            truth["vdw"][t] = true[info["element"]]
+    truth_params = ParameterSet(truth)
+    from fitting.make_pack import build_mol
+
+    records = []
+    for n, (sa, sb) in enumerate((("C", "C"), ("CC", "C"), ("CC", "CC")), 1):
+        ma, mb = build_mol(sa), build_mol(sb)
+        points, combo = [], None
+        for _o, d, xa, xb in dimers.dimer_geometries(ma, mb, n):
+            combo = dimers.combined_mol(ma, mb, xa, xb)
+            a = assign(combo, truth_params, allow_missing=True)
+            x = combo.GetConformer().GetPositions()
+            sys_ab = a.system
+            inter = (sys_ab.pair_idx[:, 0] < ma.GetNumAtoms()) & (
+                sys_ab.pair_idx[:, 1] >= ma.GetNumAtoms()
+            )
+            r = np.linalg.norm(x[sys_ab.pair_idx[inter, 0]] - x[sys_ab.pair_idx[inter, 1]], axis=1)
+            s6 = (sys_ab.pair_rmin[inter] / r) ** 6
+            e_int = float(np.sum(sys_ab.pair_eps[inter] * (s6 * s6 - 2 * s6)))
+            points.append({"scale": dimers.SCALES[d], "coords": x.tolist(), "e_int": e_int})
+        records.append({"id": f"dm_{n:03d}", "kind": "dimer", "smiles": f"{sa}.{sb}",
+                        "molblock": Chem.MolToMolBlock(combo), "n_a": ma.GetNumAtoms(),
+                        "points": points, "usable": True, "reason": ""})
+    data = skeleton()
+    stats = fitmod.fit_vdw(records, data)
+    assert stats["after"] < 0.02 < stats["before"]
+    assert data["vdw"]["c3"][0] == pytest.approx(2.05, abs=0.05)
+    assert data["vdw"]["h"][0] == pytest.approx(1.30, abs=0.05)
+    assert data["vdw"]["o"] == skeleton()["vdw"]["o"]  # no data: UFF value kept

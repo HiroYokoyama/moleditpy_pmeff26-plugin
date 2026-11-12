@@ -95,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="build the pack only")
     ap.add_argument("--fetch", metavar="JOB_ID")
+    ap.add_argument("--ids", nargs="*", help="submit only these job ids")
+    ap.add_argument("--force", action="store_true", help="start now, ahead of the host queue (small checks only)")
     ap.add_argument("--functional", default="wB97X-D", help="GAMESS DFTTYP (use with PMEFF26_LEVEL)")
     ap.add_argument("--d3bj", action="store_true", help="add Grimme D3(BJ) dispersion")
     ap.add_argument("--only", nargs="*", help="sets to run: tr va sc mt (default all)")
@@ -109,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
         print("downloaded:", reply.get("files"))
         return 0
 
-    ids = None
+    ids = args.ids or None
     if args.retry:
         ids = failed_ids(args.retry)
         print(f"{len(ids)} failed jobs to retry")
@@ -131,6 +133,7 @@ def main(argv: list[str] | None = None) -> int:
         memory="32GB",
         fetch_globs=["results.tgz", "progress.log"],
         auto_download=False,
+        **({"force_run": True} if args.force else {}),
     )
     job = job.get("job", job)
     print("submitted job", job["id"], "to", args.host)
