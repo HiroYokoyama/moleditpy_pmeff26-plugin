@@ -39,6 +39,7 @@ from scipy import sparse
 from scipy.optimize import least_squares, lsq_linear
 
 from pmeff26_plugin.assign import assign
+from pmeff26_plugin.core import _pi_term
 from pmeff26_plugin.core import (
     System,
     energy_and_gradient,
@@ -64,6 +65,7 @@ HARTREE_KCAL = 627.5095
 DEBYE_PER_EA = 4.80321
 W_GRAD = 20.0  # weight of gradient rows relative to Hessian rows
 RIDGE_TORSION = 0.05
+PI_BETA0, PI_DELTA0 = 50.0, 2.0  # starting resonance integral (kcal/mol), decay (1/A)
 
 
 def mol_of(record):
@@ -82,10 +84,10 @@ def generic(tkey: str) -> str:
     return "*|" + tkey.split("|")[1] + "|*"
 
 
-def provisional(skeleton: dict, mols: list) -> ParameterSet:
+def provisional(skeleton: dict, mols: list, use_pi: bool = False) -> ParameterSet:
     """Skeleton plus a unit placeholder for every term the molecules need."""
     data = copy.deepcopy(skeleton)
-    data["pi"] = {"enabled": False, "bonds": {}}
+    data["pi"] = {"enabled": use_pi, "bonds": {}}
     for table in ("bonds", "angles", "torsions", "impropers", "bci"):
         data[table] = {}
     data["increments"] = {"types": {}, "bonds": {}}
@@ -95,6 +97,8 @@ def provisional(skeleton: dict, mols: list) -> ParameterSet:
             kind, key = item.rsplit(" ", 1)
             if kind == "bond":
                 data["bonds"][key] = [1.0, 0.0]
+            elif kind == "pi bond":
+                data["pi"]["bonds"][key] = [0.0, PI_DELTA0, 1.4]  # beta 0: term off
             elif kind == "angle":
                 data["angles"][key] = [100.0, 0.0]
             elif kind == "torsion":
@@ -296,9 +300,15 @@ def basis_functions(x, a, classes):
         yield ("improper", t, ""), 0.0, g, h
 
 
-def fit_bonded(train: list, hessians: dict, prov: ParameterSet, classes: dict):
+def bonded_system(train: list, hessians: dict, prov: ParameterSet, classes: dict):
+    """The linear system of the bonded fit: columns, bounds, matrix, target.
+
+    ``spans`` lists (assignment, coordinates, first row) per molecule, in the
+    row layout [W_GRAD * gradient, upper triangle of the Hessian].
+    """
     columns: dict = {}
     lower: list = []
+    spans: list = []
     rows_i, cols_j, vals, rhs = [], [], [], []
     offset = 0
     for rec, mol in train:
@@ -321,6 +331,7 @@ def fit_bonded(train: list, hessians: dict, prov: ParameterSet, classes: dict):
             cols_j.extend([columns[name]] * len(nz))
             vals.extend(vec[nz])
         rhs.append(target)
+        spans.append((a, x, offset))
         offset += len(target)
     for name, col in columns.items():  # ridge on torsion barriers
         if name[0] == "torsion":
@@ -331,15 +342,147 @@ def fit_bonded(train: list, hessians: dict, prov: ParameterSet, classes: dict):
             offset += 1
     a_mat = sparse.csr_matrix((vals, (rows_i, cols_j)), shape=(offset, len(columns)))
     b_vec = np.concatenate(rhs)
-    # Scale every column to unit norm: the unknowns span four orders of
-    # magnitude (bond k ~ 1e3, torsion barriers ~ 1), which stalls LSMR.
+    return columns, np.array(lower), a_mat, b_vec, spans
+
+
+def _column_scaled(a_mat):
     norms = np.sqrt(np.asarray(a_mat.multiply(a_mat).sum(axis=0)).ravel())
     norms[norms == 0.0] = 1.0
-    scaled = a_mat @ sparse.diags(1.0 / norms)
+    return a_mat @ sparse.diags(1.0 / norms), norms
+
+
+def solve_bonded(a_mat, b_vec, lower) -> np.ndarray:
+    # Scale every column to unit norm: the unknowns span four orders of
+    # magnitude (bond k ~ 1e3, torsion barriers ~ 1), which stalls LSMR.
+    scaled, norms = _column_scaled(a_mat)
     lb = np.array(lower) * norms  # 0 and -inf are unchanged by the scaling
     result = lsq_linear(scaled, b_vec, bounds=(lb, np.inf), lsq_solver="lsmr",
                         lsmr_tol=1e-12, tol=1e-12, max_iter=500, lsmr_maxiter=20000)
-    return columns, result.x / norms
+    return result.x / norms
+
+
+def fit_bonded(train: list, hessians: dict, prov: ParameterSet, classes: dict):
+    columns, lower, a_mat, b_vec, _spans = bonded_system(train, hessians, prov, classes)
+    return columns, solve_bonded(a_mat, b_vec, lower)
+
+
+# --- 2b. pi-electron term -----------------------------------------------------
+
+
+def pi_pair(params: ParameterSet, t1: str, t2: str) -> str:
+    """Class of a pi bond: its two elements. All type pairs of a class share beta."""
+    return "~".join(sorted((params.type_info[t1]["element"], params.type_info[t2]["element"])))
+
+
+def pi_site(params: ParameterSet, t: str) -> str:
+    """Class of a pi atom: element + electrons it contributes. Shares alpha."""
+    info = params.type_info[t]
+    return f"{info['element']}{info['pi_electrons']}"
+
+
+def _pi_grad_hess(x, system, atoms, delta=1e-4):
+    """Gradient and Hessian of the pi term alone (only *atoms* move it)."""
+    def grad(y):
+        g = np.zeros_like(y)
+        _pi_term(y, system, g)
+        return g.ravel()
+
+    hess = np.zeros((x.size, x.size))
+    y = x.copy()
+    for atom in atoms:
+        for c in range(3):
+            keep = y[atom, c]
+            y[atom, c] = keep + delta
+            gp = grad(y)
+            y[atom, c] = keep - delta
+            gm = grad(y)
+            y[atom, c] = keep
+            hess[3 * atom + c] = (gp - gm) / (2.0 * delta)
+    return grad(x), 0.5 * (hess + hess.T)
+
+
+def fit_pi(prov: ParameterSet, a_mat, b_vec, spans: list, max_nfev: int = 15, log=print):
+    """Fit the Hueckel pi parameters by variable projection.
+
+    For trial pi parameters the pi gradient and Hessian are subtracted from the
+    targets and the bonded terms are re-solved linearly (unbounded, by
+    projection); the remaining residual is minimized. Unknowns: one resonance
+    integral ``beta`` per element pair, one on-site energy ``alpha`` per
+    (element, electron count) other than carbon, and one global decay
+    ``delta``. ``rref`` is not fitted: it is the mean DFT length of the pi
+    bonds of the pair. Returns None when no training molecule has a pi system.
+    """
+    mols, lengths = [], defaultdict(list)
+    for a, x, offset in spans:
+        s = a.system
+        if not len(s.pi_bond):
+            continue
+        ends = s.pi_atoms[s.pi_bond]
+        pairs = [pi_pair(prov, a.types[i], a.types[j]) for i, j in ends]
+        for (i, j), name in zip(ends, pairs):
+            lengths[name].append(float(np.linalg.norm(x[i] - x[j])))
+        sites = [pi_site(prov, a.types[i]) for i in s.pi_atoms]
+        moved = sorted(set(s.pi_atoms.tolist()) | set(s.pi_path_idx.ravel().tolist()))
+        mols.append((s, x, offset, pairs, sites, moved, np.triu_indices(x.size)))
+    if not mols:
+        return None
+    pair_names = sorted(lengths)
+    rref = {name: float(np.mean(v)) for name, v in lengths.items()}
+    site_names = sorted({c for m in mols for c in m[4]} - {"C1"})
+    n_pair, n_site = len(pair_names), len(site_names)
+    pair_col = {n: k for k, n in enumerate(pair_names)}
+    site_col = {n: n_pair + k for k, n in enumerate(site_names)}
+
+    def systems(p):
+        for s, x, offset, pairs, sites, moved, tri in mols:
+            yield _sub(
+                s, pi_atoms=s.pi_atoms, pi_occ=s.pi_occ, pi_bond=s.pi_bond,
+                pi_path_idx=s.pi_path_idx, pi_path_bond=s.pi_path_bond,
+                pi_beta=np.array([p[pair_col[n]] for n in pairs]),
+                pi_delta=np.full(len(pairs), p[-1]),
+                pi_rref=np.array([rref[n] for n in pairs]),
+                pi_alpha=np.array([p[site_col[c]] if c in site_col else 0.0 for c in sites]),
+            ), x, offset, moved, tri
+
+    def pi_vector(p):
+        out = np.zeros(len(b_vec))
+        for s, x, offset, moved, tri in systems(p):
+            g, h = _pi_grad_hess(x, s, moved)
+            vec = np.concatenate([W_GRAD * g, h[tri]])
+            out[offset : offset + len(vec)] = vec
+        return out
+
+    scaled, _norms = _column_scaled(a_mat)
+    val, vec = np.linalg.eigh((scaled.T @ scaled).toarray())
+    keep = val > 1e-10 * val.max()
+    val, vec = val[keep], vec[:, keep]
+
+    def project(t):  # the part of t the bonded terms cannot absorb
+        return t - scaled @ (vec @ ((vec.T @ (scaled.T @ t)) / val))
+
+    p0 = np.concatenate([np.full(n_pair, PI_BETA0), np.zeros(n_site), [PI_DELTA0]])
+    lower = np.concatenate([np.full(n_pair, 1.0), np.full(n_site, -80.0), [0.5]])
+    upper = np.concatenate([np.full(n_pair, 300.0), np.full(n_site, 80.0), [5.0]])
+    # Weak pull to the start values settles parameters the data do not determine.
+    pull = np.concatenate([np.full(n_pair, 0.02), np.full(n_site, 0.05), [1.0]])
+
+    def residual(p):
+        return np.concatenate([project(b_vec - pi_vector(p)), pull * (p - p0)])
+
+    log(f"pi fit: {len(mols)} molecules, {len(p0)} parameters")
+    sol = least_squares(residual, p0, bounds=(lower, upper), diff_step=1e-3,
+                        x_scale=np.concatenate([np.full(n_pair, 20.0), np.full(n_site, 10.0), [0.5]]),
+                        max_nfev=max_nfev)
+    p = sol.x
+    n = len(b_vec)
+    return {
+        "beta": {name: float(p[pair_col[name]]) for name in pair_names},
+        "rref": rref, "delta": float(p[-1]),
+        "alpha": {c: float(p[site_col[c]]) for c in site_names},
+        "vector": pi_vector(p), "molecules": len(mols),
+        "before": float(np.sqrt(np.mean(project(b_vec) ** 2))),
+        "after": float(np.sqrt(np.mean(sol.fun[:n] ** 2))),
+    }
 
 
 def tables_from_solution(columns: dict, sol: np.ndarray):
@@ -511,23 +654,36 @@ def evaluate(items: list, hessians: dict, params: ParameterSet) -> dict:
             "bond_rmsd": rms(bond_err), "angle_rmsd": rms(angle_err), "freq_rmsd": rms(freq_err)}
 
 
-def fit(records: list, hessians: dict, skeleton: dict):
+def fit(records: list, hessians: dict, skeleton: dict, use_pi: bool = True):
     """Return (parameter dict, report text)."""
     usable = [r for r in records if r["usable"]]
-    train = [(r, mol_of(r)) for r in usable if r["kind"] == "train"]
-    valid = [(r, mol_of(r)) for r in usable if r["kind"] == "validate"]
+    probe = copy.deepcopy(skeleton)
+    probe["pi"] = {"enabled": use_pi, "bonds": {}}
+    probe, untyped, mols = ParameterSet(probe), [], {}
+    for r in usable:
+        if r["kind"] in ("train", "validate"):
+            try:
+                mol = mol_of(r)
+                assign(mol, probe, allow_missing=True)
+                mols[r["id"]] = mol
+            except ParameterError as exc:
+                untyped.append((r, str(exc)))
+    train = [(r, mols[r["id"]]) for r in usable if r["kind"] == "train" and r["id"] in mols]
+    valid = [(r, mols[r["id"]]) for r in usable if r["kind"] == "validate" and r["id"] in mols]
     scans = [r for r in usable if r["kind"] == "scan"]
     dimers = [r for r in usable if r["kind"] == "dimer"]
     if not train:
         raise SystemExit("no usable training molecules in the reference data")
 
-    prov = provisional(skeleton, [m for _r, m in train])
+    prov = provisional(skeleton, [m for _r, m in train], use_pi)
     bci = fit_charges(train, prov)
     prov.data["bci"] = {k: bci.get(k, 0.0) for k in prov.bci}
     vdw_stats = fit_vdw(dimers, prov.data)  # updates prov.data["vdw"] in place
     prov = ParameterSet(prov.data)
     classes = angle_classes(train, prov)
-    columns, sol = fit_bonded(train, hessians, prov, classes)
+    columns, lower, a_mat, b_vec, spans = bonded_system(train, hessians, prov, classes)
+    pi_fit = fit_pi(prov, a_mat, b_vec, spans) if use_pi else None
+    sol = solve_bonded(a_mat, b_vec - pi_fit["vector"] if pi_fit else b_vec, lower)
     bonds, angles, torsions, impropers, dropped = tables_from_solution(columns, sol)
 
     data = copy.deepcopy(skeleton)
@@ -537,6 +693,17 @@ def fit(records: list, hessians: dict, skeleton: dict):
         bci=bci, bonds=bonds, angles=angles, torsions=torsions, impropers=impropers,
     )
     data["pi"] = {"enabled": False, "bonds": {}}
+    if pi_fit:
+        table = {}
+        for key in prov.pi_bonds:
+            name = pi_pair(prov, *key.split("~"))
+            if name in pi_fit["beta"]:
+                table[key] = [round(pi_fit["beta"][name], 3), round(pi_fit["delta"], 4),
+                              round(pi_fit["rref"][name], 4)]
+        data["pi"] = {"enabled": True, "bonds": table}
+        for entry in data["atom_types"]:
+            if entry.get("pi_electrons") is not None:
+                entry["pi_alpha"] = round(pi_fit["alpha"].get(pi_site(prov, entry["type"]), 0.0), 3)
     data["increments"] = {"types": {}, "bonds": {}}
     data["vdw"] = copy.deepcopy(prov.data["vdw"])
     if vdw_stats:
@@ -577,6 +744,17 @@ def fit(records: list, hessians: dict, skeleton: dict):
                   f"(points with E_int < 5). Classes: {', '.join(vdw_stats['classes'])}."]
     else:
         lines += ["", "van der Waals: no dimer data yet; UFF values used unchanged."]
+    if pi_fit:
+        lines += ["", f"pi-electron term fitted on {pi_fit['molecules']} molecules: unexplained "
+                  f"gradient/Hessian residual {pi_fit['before']:.3f} -> {pi_fit['after']:.3f} "
+                  f"(RMS; before = conventional terms only). delta = {pi_fit['delta']:.3f} 1/A.", "",
+                  "| pi bond class | beta (kcal/mol) | rref (A) |", "|---|---|---|"]
+        lines += [f"| {n} | {b:.1f} | {pi_fit['rref'][n]:.3f} |" for n, b in sorted(pi_fit["beta"].items())]
+        if pi_fit["alpha"]:
+            lines += ["", "On-site energies relative to carbon (kcal/mol): "
+                      + ", ".join(f"{c} {v:+.1f}" for c, v in sorted(pi_fit["alpha"].items())) + "."]
+    else:
+        lines += ["", "pi-electron term: switched off."]
     if scan_rmse:
         lines += ["", "## Torsion scan fit (RMSE, kcal/mol)", ""]
         lines += [f"- `{k}`: {v:.2f}" for k, v in sorted(scan_rmse.items())]
@@ -588,9 +766,10 @@ def fit(records: list, hessians: dict, skeleton: dict):
             lines += ["", f"## {name}: molecules not covered", ""]
             lines += [f"- {i} `{smi}`: {', '.join(m)}" for i, smi, m in s["refused"]]
     unused = [r for r in records if not r["usable"]]
-    if unused:
+    if unused or untyped:
         lines += ["", "## Reference records not used", ""]
         lines += [f"- {r['id']} `{r['smiles']}`: {r['reason']}" for r in unused]
+        lines += [f"- {r['id']} `{r['smiles']}`: {why}" for r, why in untyped]
     return data, "\n".join(lines) + "\n"
 
 
@@ -601,7 +780,8 @@ def main(argv: list[str] | None = None) -> int:
     from . import init_parameters
 
     skeleton = init_parameters.skeleton()
-    data, report = fit(records, hessians, skeleton)
+    argv = sys.argv[1:] if argv is None else argv
+    data, report = fit(records, hessians, skeleton, use_pi="--no-pi" not in argv)
     level.PARAMETER_FILE.write_text(json.dumps(data, indent=1) + "\n", encoding="utf-8", newline="\n")
     (REF / "fit_report.md").write_text(report, encoding="utf-8", newline="\n")
     print(report)

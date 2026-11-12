@@ -12,7 +12,7 @@ State on 2026-11-12. Read this first when picking the project up again.
 | Reference calculations | **Running** on the compute host (GAMESS, wB97X-D/def2-TZVP) |
 | Result extraction (`fitting/collect.py`) | Done, tested on real GAMESS output |
 | Fit (`fitting/fit.py`) | Done, tested on synthetic data and a 3-molecule real smoke set |
-| pi-electron term | In the engine and tested, but **not fitted** (`pi.enabled` is false) |
+| pi-electron term | Engine and fit done, tested on synthetic data; not yet run on real DFT data |
 | GitHub | Private repo `HiroYokoyama/moleditpy_pmeff26-plugin`; CI is manual-only |
 
 ## What to do next, in order
@@ -65,8 +65,9 @@ set `PMEFF26_HOST` or pass `--host NAME`.
 | `python -m fitting.build_parameters` | Download + extract + fit, in one go |
 | `python -m fitting.collect [JOB_ID ...]` | Download + extract only |
 | `python -m fitting.fit` | Fit only, from `reference/reference_data.json` |
+| `python -m fitting.fit --no-pi` | Same, with the pi term off (bonds keyed by formal order) |
 | `python -m fitting.init_parameters --force` | Reset the parameter file to the unfitted skeleton |
-| `python -m pytest tests -q -n auto` | Tests (30 pass) |
+| `python -m pytest tests -q -n auto` | Tests (34 pass) |
 
 ## Another DFT level
 
@@ -93,9 +94,16 @@ the van der Waals values.
   will take many days on one 8-core machine; the metal set queues behind it.
 - **Metal jobs are untested.** No metal GAMESS input has run yet. SCF
   convergence for the Cr, Ni, Pd and Pt complexes is not verified.
-- **pi term not fitted.** `fit.py` fits the conventional terms only, keyed by
-  formal bond order. Fitting the pi parameters (`beta`, `delta`, `rref`,
-  `pi_alpha`) is a nonlinear problem and is not written.
+- **pi term is fitted but unproven on real data.** `fit.py` fits it by default
+  (`fit_pi`: one `beta` per element pair, one `pi_alpha` per element/electron
+  count relative to carbon, one global `delta`; `rref` is the mean DFT length
+  of the pair's pi bonds). Bonds between pi types are then keyed `a~b`. On
+  synthetic conjugated hydrocarbons it beats the conventional fit (held-out
+  hexatriene bond RMSD 0.0005 vs 0.0073 A). On the real set, compare the
+  validation rows of a normal run and a `--no-pi` run and keep the better
+  file. The pi fit is the slow step (estimated tens of minutes on the full
+  set). Systems with a half-filled degenerate pi level (cyclobutadiene) are
+  not smooth and are not handled specially.
 - **No cross terms** (stretch-bend etc.). On the 3-molecule smoke fit the
   frequency RMSD was 116 cm^-1 while geometry was 0.0007 A; expect geometry to
   be much better than frequencies.

@@ -111,7 +111,12 @@ def assign(mol, params: Optional[ParameterSet] = None, allow_missing: bool = Fal
     charges = np.array([float(a.GetFormalCharge()) for a in mol.GetAtoms()])
     bond_idx, bond_r0, bond_k, bond_keys = [], [], [], []
     pi_base = [params.pi_electrons(t) for t in types]
-    pi_atoms = [i for i, e in enumerate(pi_base) if e is not None]
+    # A pi-type atom with no pi-type neighbour (sulfoxide O, ...) has nothing
+    # to conjugate with and stays out of the pi system.
+    pi_atoms = [
+        i for i, e in enumerate(pi_base)
+        if e is not None and any(pi_base[j] is not None for j in nbrs[i])
+    ]
     pi_local = {i: pos for pos, i in enumerate(pi_atoms)}
     pi_bond, pi_beta, pi_delta, pi_rref, pi_bond_keys = [], [], [], [], []
     pi_bond_of: Dict[Tuple[int, int], int] = {}
