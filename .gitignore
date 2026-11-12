@@ -226,3 +226,4 @@ pmeff26_plugin/settings.json
 /reference*/smoke/
 /reference*/retry/
 /reference*/raw/*.dat.gz
+*.zip

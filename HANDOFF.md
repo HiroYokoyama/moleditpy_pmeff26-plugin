@@ -9,7 +9,7 @@ State on 2026-11-12. Read this first when picking the project up again.
 | Engine (`pmeff26_plugin/core.py`, `assign.py`, `parameters.py`, `forcefield.py`) | Done, tested |
 | Plugin wiring (`pmeff26_plugin/__init__.py`) | Done; GUI dialogs not re-tested after the rewrite |
 | Parameter file (`pmeff26_plugin/parameters/pmeff26.json`) | **Unfitted skeleton**: types + vdW only, so every molecule is refused |
-| Reference calculations | **Running** on host `1J1NFIR` (GAMESS, wB97X-D/def2-TZVP) |
+| Reference calculations | **Running** on the compute host (GAMESS, wB97X-D/def2-TZVP) |
 | Result extraction (`fitting/collect.py`) | Done, tested on real GAMESS output |
 | Fit (`fitting/fit.py`) | Done, tested on synthetic data and a 3-molecule real smoke set |
 | pi-electron term | In the engine and tested, but **not fitted** (`pi.enabled` is false) |
@@ -18,7 +18,8 @@ State on 2026-11-12. Read this first when picking the project up again.
 ## What to do next, in order
 
 Everything runs from the repo root with the MoleditPy Job Manager open and its
-Local API switched on.
+Local API switched on. Submitting commands need the Job Manager host name:
+set `PMEFF26_HOST` or pass `--host NAME`.
 
 1. **Check progress** of the two reference jobs in the Job Manager
    (`pmeff26-reference`, `pmeff26-ref-mt`). Their ids are in `fitting/jobs.txt`.

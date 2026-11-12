@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the whole PMEFF26 reference calculation in one go.
 
-Builds every GAMESS input, packs them, and submits ONE job to the compute host
+Builds every GAMESS input, packs them, and submits ONE job to the compute host (``--host NAME`` or ``PMEFF26_HOST``)
 through the MoleditPy Job Manager local API (the Job Manager must be running
 with *Local API* switched on):
 
@@ -18,6 +18,7 @@ stopped if resubmitted in the same remote directory. Progress is in
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import shutil
 import sys
@@ -89,7 +90,8 @@ def build_pack(smoke: bool, ids: list[str] | None = None, only: list[str] | None
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--host", default="1J1NFIR")
+    ap.add_argument("--host", default=os.environ.get("PMEFF26_HOST"),
+                    help="Job Manager host name (or set PMEFF26_HOST)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="build the pack only")
     ap.add_argument("--fetch", metavar="JOB_ID")
@@ -115,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
     extra = ["--functional", args.functional] + (["--d3bj"] if args.d3bj else [])
     out = build_pack(args.smoke, ids, args.only, extra)
+    if not args.host and not args.dry_run:
+        raise SystemExit("give --host NAME (a Job Manager host) or set PMEFF26_HOST")
     print("pack:", out / "pack.tgz")
     if args.dry_run:
         return 0

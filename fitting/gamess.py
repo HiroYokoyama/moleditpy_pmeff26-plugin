@@ -27,12 +27,14 @@ def gamess_input(
     frozen_value: float = 0.0,
     functional: str = "wB97X-D",
     d3bj: bool = False,
+    single_point: bool = False,
+    ghosts: frozenset = frozenset(),
 ) -> str:
     """Return a GAMESS optimization input (optionally + Hessian, or constrained)."""
-    use_ecp = any(_BASIS[s]["ecp"] for s in symbols)
+    use_ecp = any(_BASIS[s]["ecp"] and n not in ghosts for n, s in enumerate(symbols))
     n = len(symbols)
     contrl = [
-        f" $CONTRL SCFTYP=RHF RUNTYP=OPTIMIZE DFTTYP={functional} ISPHER=1",
+        f" $CONTRL SCFTYP=RHF RUNTYP={'ENERGY' if single_point else 'OPTIMIZE'} DFTTYP={functional} ISPHER=1",
         "  MAXIT=200 ICHARG=0 MULT=1",
     ]
     if frozen_dihedral is not None:
@@ -45,7 +47,9 @@ def gamess_input(
         " $SCF DIRSCF=.TRUE. NCONV=7 $END",
         " $DFT NRAD=99 NLEB=590" + (" DC=.TRUE. IDCVER=4" if d3bj else "") + " $END",
     ]
-    if frozen_dihedral is not None:
+    if single_point:
+        pass
+    elif frozen_dihedral is not None:
         i, j, k, l = (x + 1 for x in frozen_dihedral)
         lines += [
             " $ZMAT DLC=.TRUE. AUTO=.TRUE.",
@@ -60,17 +64,20 @@ def gamess_input(
     else:
         lines.append(" $STATPT OPTTOL=1.0E-5 NSTEP=300 $END")
     lines += [" $DATA", title, "C1"]
-    for sym, z, (x, y, zc) in zip(symbols, atomic_numbers, coords):
-        lines.append(f"{sym:<2s} {float(z):5.1f} {x:16.10f} {y:16.10f} {zc:16.10f}")
+    for n, (sym, z, (x, y, zc)) in enumerate(zip(symbols, atomic_numbers, coords)):
+        # A ghost atom (counterpoise correction) keeps its basis functions but
+        # has no nuclear charge and no electrons.
+        charge = 0.0 if n in ghosts else float(z)
+        lines.append(f"{sym:<2s} {charge:5.1f} {x:16.10f} {y:16.10f} {zc:16.10f}")
         lines.extend(_BASIS[sym]["basis"])
         lines.append("")
     lines.append(" $END")
     if use_ecp:
         lines.append(" $ECP")
         seen: set[str] = set()
-        for sym in symbols:
+        for n, sym in enumerate(symbols):
             ecp = _BASIS[sym]["ecp"]
-            if not ecp:
+            if not ecp or n in ghosts:
                 lines.append(f"{sym}-ECP NONE")
             elif sym in seen:
                 lines.append(f"{sym}-ECP")

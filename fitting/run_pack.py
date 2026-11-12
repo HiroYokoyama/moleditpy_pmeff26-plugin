@@ -156,11 +156,31 @@ def run_scan(job: str, ncores: int) -> None:
     finish(job, all(pt["energy"] is not None for pt in points))
 
 
+def run_energy(job: str, ncores: int) -> None:
+    """Single point: keep only the final energy (and the output if it failed)."""
+    workdir = os.path.join(ROOT, "work", job)
+    os.makedirs(workdir, exist_ok=True)
+    shutil.copy(os.path.join(ROOT, "inp", job + ".inp"), workdir)
+    out = run_gamess(workdir, job, ncores)
+    text = open(out, errors="replace").read() if os.path.exists(out) else ""
+    energies = _ENERGY.findall(text)
+    ok = bool(energies) and "EXECUTION OF GAMESS TERMINATED NORMALLY" in text
+    if ok:
+        with open(os.path.join(RESULTS, job + ".energy"), "w") as fh:
+            fh.write(energies[-1])
+    else:
+        keep(out, job + ".out")
+    cleanup(workdir, job)
+    finish(job, ok)
+
+
 def run_job(job: str, ncores: int) -> None:
     if os.path.exists(os.path.join(RESULTS, job + ".done")):
         return
     try:
-        if os.path.exists(os.path.join(ROOT, "inp", job + ".scan")):
+        if job.startswith("dm_"):
+            run_energy(job, ncores)
+        elif os.path.exists(os.path.join(ROOT, "inp", job + ".scan")):
             run_scan(job, ncores)
         else:
             run_opt(job, ncores)
