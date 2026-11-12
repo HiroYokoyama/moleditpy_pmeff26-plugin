@@ -110,8 +110,8 @@ the van der Waals values.
   its empirical-dispersion code and ignores `DC=.FALSE.` for wB97X-D, so the
   BSSE correction is computed with the parent functional.
 - **Privacy.** Downloaded outputs are scrubbed of the account and host name
-  before commit, but commit `77854f9` in the history still holds unscrubbed
-  outputs. Rewrite history before making the repo public.
+  before commit. Commit `77854f9` in the history holds unscrubbed outputs; the
+  owner has accepted that (host name and home path may be public).
 - **Torsion fits use DFT scan geometries** with force-field single points, not
   force-field-relaxed scans.
 - **Metal scope.** Neutral closed-shell species only; no pi-complexes, no
