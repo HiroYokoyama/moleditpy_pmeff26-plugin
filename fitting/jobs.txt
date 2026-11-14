@@ -1,6 +1,12 @@
 # Job Manager job ids of the reference runs (one per line; text after the id is a note)
 4f16990769e4 main run: train + validate + scans
-c67e6569e89f metal set
-faa0c635e664 pmeff26-ref-retry
-933992e9982d pmeff26-ref-dm
-a547fda3cbd0 check: tr_066 tr_229 with internal-coordinate optimizer
+c67e6569e89f CANCELLED (never started): replaced by ca8c6aa2a645
+faa0c635e664 CANCELLED (old inputs): replaced by c9e838e9efb7
+933992e9982d CANCELLED (never started): replaced by 34f662c26868
+a547fda3cbd0 check: tr_066 tr_229 with internal-coordinate optimizer (1J1NFIR)
+c9e838e9efb7 pmeff26-ref-retry
+ca8c6aa2a645 pmeff26-ref-mt
+34f662c26868 pmeff26-ref-dm
+c9e838e9efb7 DC1WS01 retry: 73 failed main-run molecules, internal-coordinate inputs
+ca8c6aa2a645 DC1WS01 metal set (64), internal-coordinate inputs
+34f662c26868 DC1WS01 pmeff26-ref-dm: 47 dimer pairs
