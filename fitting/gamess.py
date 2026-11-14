@@ -42,7 +42,11 @@ def gamess_input(
         f" $CONTRL SCFTYP=RHF RUNTYP={'ENERGY' if single_point else 'OPTIMIZE'} DFTTYP={functional} ISPHER=1",
         "  MAXIT=200 ICHARG=0 MULT=1",
     ]
-    if frozen_dihedral is not None:
+    # Delocalized internal coordinates for every optimization of 4+ atoms: the
+    # Cartesian optimizer's Badger guess Hessian is singular for many ordinary
+    # molecules and GAMESS aborts at step 0 ("NOT 5 OR 6 TRANS/ROT MODES").
+    use_dlc = not single_point and (frozen_dihedral is not None or n >= 4)
+    if use_dlc:
         contrl.append(f"  NZVAR={3 * n - 6}")
     if use_ecp:
         contrl.append("  PP=READ")
@@ -63,13 +67,16 @@ def gamess_input(
             f"  IFZMAT(1)=3,{i},{j},{k},{l} FVALUE(1)={frozen_value:.4f} $END",
             " $STATPT OPTTOL=1.0E-4 NSTEP=300 $END",
         ]
-    elif hessian and n > 1:
-        lines += [
-            " $STATPT OPTTOL=1.0E-5 NSTEP=300 HSSEND=.TRUE. $END",
-            " $FORCE METHOD=SEMINUM NVIB=2 $END",
-        ]
     else:
-        lines.append(" $STATPT OPTTOL=1.0E-5 NSTEP=300 $END")
+        if use_dlc:
+            lines.append(" $ZMAT DLC=.TRUE. AUTO=.TRUE. $END")
+        if hessian and n > 1:
+            lines += [
+                " $STATPT OPTTOL=1.0E-5 NSTEP=300 HSSEND=.TRUE. $END",
+                " $FORCE METHOD=SEMINUM NVIB=2 $END",
+            ]
+        else:
+            lines.append(" $STATPT OPTTOL=1.0E-5 NSTEP=300 $END")
     lines += [" $DATA", title, "C1"]
     for n, (sym, z, (x, y, zc)) in enumerate(zip(symbols, atomic_numbers, coords)):
         # A ghost atom (counterpoise correction) keeps its basis functions but
