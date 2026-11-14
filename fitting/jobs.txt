@@ -9,4 +9,7 @@ ca8c6aa2a645 pmeff26-ref-mt
 34f662c26868 pmeff26-ref-dm
 c9e838e9efb7 DC1WS01 retry: 73 failed main-run molecules, internal-coordinate inputs
 ca8c6aa2a645 DC1WS01 metal set (64), internal-coordinate inputs
-34f662c26868 DC1WS01 pmeff26-ref-dm: 47 dimer pairs
+34f662c26868 CANCELLED (never started): moved to GF57ABL as e382b25a0679
+e382b25a0679 GF57ABL pmeff26-ref-dm: 47 dimer pairs
+e997f111e458 pmeff26-ref-dm
+e382b25a0679 pmeff26-ref-dm

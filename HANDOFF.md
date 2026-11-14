@@ -48,8 +48,8 @@ refuses every molecule. That is intended behaviour, not a bug.
 | Plugin GUI (dialogs) | Not re-run since the engine rewrite |
 | GitHub | Public, `HiroYokoyama/moleditpy_pmeff26-plugin`; CI runs on push and pull request |
 
-Reference jobs (ids are in `fitting/jobs.txt`). Two hosts are used; both run
-GAMESS 2024R2P1 (the `1J1NFIR` install was copied to `DC1WS01`, runtime files
+Reference jobs (ids are in `fitting/jobs.txt`). Three hosts are used; all run
+GAMESS 2024R2P1 (the `1J1NFIR` install was copied to `DC1WS01` and `GF57ABL`, runtime files
 only, with `~/qc-progs/bin/gamess` as launcher):
 
 | Job id | Host | Name | Content | State on 2026-11-14 |
@@ -57,10 +57,10 @@ only, with `~/qc-progs/bin/gamess` as launcher):
 | `4f16990769e4` | 1J1NFIR | `pmeff26-reference` | 411 training + 75 validation molecules, 63 torsion scans | Running, **old inputs** (Cartesian optimizer): 287 of 549 processed, 72 failed. Let it finish, then `--retry` it |
 | `c9e838e9efb7` | DC1WS01 | `pmeff26-ref-retry` | 73 molecules that failed so far in the main run | Running, internal-coordinate inputs |
 | `ca8c6aa2a645` | DC1WS01 | `pmeff26-ref-mt` | 64 metal complexes | Running. **No metal input had run before** |
-| `34f662c26868` | DC1WS01 | `pmeff26-ref-dm` | 47 dimer pairs for the vdW refit (2,538 dimer points + monomers) | Queued behind the two above |
+| `e382b25a0679` | GF57ABL | `pmeff26-ref-dm` | 47 dimer pairs for the vdW refit (2,538 dimer points + monomers) | Submitted. GAMESS 2024R2P1 was copied there too (Zen 3 CPU, no AVX-512; first run not yet checked) |
 
-Cancelled (old inputs, never started): `faa0c635e664`, `c67e6569e89f`,
-`933992e9982d`. `a547fda3cbd0` was a two-molecule check of the fix.
+Cancelled (never started): `faa0c635e664`, `c67e6569e89f`, `933992e9982d`,
+`34f662c26868`, `e997f111e458`. `a547fda3cbd0` was a two-molecule check of the fix.
 Fetch DC1WS01 jobs with `--fetch ID` (the host is stored with the job).
 After the main run ends, retry what failed in it: molecules already retried on
 `DC1WS01` appear in both lists, so run `--retry 4f16990769e4 --ids ...` only for
