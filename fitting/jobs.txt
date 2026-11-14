@@ -3,3 +3,4 @@
 c67e6569e89f metal set
 faa0c635e664 pmeff26-ref-retry
 933992e9982d pmeff26-ref-dm
+a547fda3cbd0 check: tr_066 tr_229 with internal-coordinate optimizer
